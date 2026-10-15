@@ -3,3 +3,5 @@ docs/*
 handover/*
 marketing-pages/*
 mockups/*
+
+.worktrees/
