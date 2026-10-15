@@ -1,0 +1,114 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+
+class Playbook:
+    def __init__(
+        self,
+        id: str,
+        title: str,
+        description: str,
+        risk: str,
+        auto_run: bool,
+        source: str,
+        verifier_id: str | None,
+        steps: list[dict[str, Any]],
+        issue_ids: list[str],
+        builtin: bool = False,
+        verifier: Playbook | None = None,
+        applies_to: Any = None,
+    ):
+        self.id = id
+        self.title = title
+        self.description = description
+        self.risk = risk
+        self.auto_run = auto_run
+        self.source = source
+        self.verifier_id = verifier_id
+        self.steps = steps
+        self.issue_ids = issue_ids
+        self.is_builtin = builtin
+        self.verifier = verifier
+        self.applies_to = applies_to
+
+    @classmethod
+    def from_dict(cls, data: dict, source: str):
+        applies_to = data.get("applies_to", {}) or {}
+        if isinstance(applies_to, dict):
+            issue_ids = applies_to.get("issue_ids", []) or []
+        elif isinstance(applies_to, list):
+            issue_ids = applies_to
+        else:
+            issue_ids = []
+        return cls(
+            id=data["id"],
+            title=data.get("title", data["id"]),
+            description=data.get("description", ""),
+            risk=data.get("risk", "confirm"),
+            auto_run=bool(data.get("auto_run", False)),
+            source=source,
+            verifier_id=data.get("verifier_id"),
+            steps=data.get("steps", []) or [],
+            issue_ids=list(issue_ids),
+            builtin=source == "builtin",
+            applies_to=applies_to,
+        )
+
+    def commands(self) -> list[str]:
+        return [str(step.get("command", "") if isinstance(step, dict) else step) for step in self.steps]
+
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _candidate_builtin_dirs(path: str | Path | None = None):
+    if path is not None:
+        yield Path(path)
+        return
+    seen: set[str] = set()
+    for candidate in (
+        _REPO_ROOT / "opspilot" / "playbooks" / "builtin",
+        Path.cwd() / "opspilot" / "playbooks" / "builtin",
+        Path(__file__).resolve().parent / "playbooks" / "builtin",
+    ):
+        try:
+            key = str(candidate.resolve())
+        except OSError:
+            key = str(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        yield candidate
+
+
+def load_builtin_playbooks(path: str | Path | None = None) -> list[Playbook]:
+    playbooks: list[Playbook] = []
+    seen_files: set[str] = set()
+    for directory in _candidate_builtin_dirs(path):
+        directory = Path(directory)
+        if directory.is_file():
+            candidates = [directory]
+        elif directory.is_dir():
+            candidates = sorted(
+                list(directory.glob("*.yaml")) + list(directory.glob("*.yml"))
+            )
+        else:
+            continue
+        for file_path in candidates:
+            try:
+                key = str(file_path.resolve())
+            except OSError:
+                key = str(file_path)
+            if key in seen_files:
+                continue
+            seen_files.add(key)
+            with file_path.open("r", encoding="utf-8") as handle:
+                document = yaml.safe_load(handle)
+            if not isinstance(document, dict):
+                continue
+            playbooks.append(Playbook.from_dict(document, source="builtin"))
+    return playbooks

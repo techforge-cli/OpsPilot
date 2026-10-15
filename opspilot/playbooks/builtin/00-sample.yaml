@@ -1,0 +1,9 @@
+id: sample-noop
+title: Sample read-only playebook
+description: Demonstration playbook that reads system state.
+risk: auto
+auto_run: true
+steps:
+  - id: load
+    command: uptime && free -b
+verifier_id: sample-verify
