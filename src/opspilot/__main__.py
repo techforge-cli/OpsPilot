@@ -28,3 +28,7 @@ def main() -> None:
         port=port,
         log_level=settings.log_level.lower(),
     )
+
+
+if __name__ == "__main__":
+    main()
