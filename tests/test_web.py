@@ -1,0 +1,40 @@
+from fastapi.testclient import TestClient
+
+from opspilot.config import Settings
+from opspilot.web import create_app
+
+
+def test_root_requires_auth_in_admin_mode():
+    settings = Settings(data_dir="/tmp/opspilotweb", ollama_base_url="x", ollama_model="m", admin_password="secret")
+    client = TestClient(create_app(settings))
+    response = client.get("/")
+    assert response.status_code in (401, 302, 403)
+
+
+def test_root_allows_read_only_mode():
+    settings = Settings(data_dir="/tmp/opspilotweb_ro", ollama_base_url="x", ollama_model="m")
+    client = TestClient(create_app(settings))
+    response = client.get("/")
+    assert response.status_code == 200
+
+
+def test_root_allows_valid_admin_password():
+    settings = Settings(data_dir="/tmp/opspilotweb_ok", ollama_base_url="x", ollama_model="m", admin_password="secret")
+    client = TestClient(create_app(settings))
+    response = client.get("/", auth=("admin", "secret"))
+    assert response.status_code == 200
+
+
+def test_root_rejects_bad_admin_password():
+    settings = Settings(data_dir="/tmp/opspilotweb_bad", ollama_base_url="x", ollama_model="m", admin_password="secret")
+    client = TestClient(create_app(settings))
+    response = client.get("/", auth=("admin", "wrong"))
+    assert response.status_code == 401
+
+
+def test_healthz():
+    settings = Settings(data_dir="/tmp/opspilotweb_hz", ollama_base_url="x", ollama_model="m")
+    client = TestClient(create_app(settings))
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
