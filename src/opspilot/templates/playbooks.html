@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head><title>OpsPilot Playbooks</title></head>
+<body>
+<h1>Playbooks</h1>
+<ul>
+{% for playbook in playbooks %}
+<li>{{ playbook.id }} - {{ playbook.title }}</li>
+{% endfor %}
+</ul>
+</body>
+</html>

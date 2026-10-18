@@ -1,0 +1,10 @@
+id: sample-verify
+title: Sample verifier
+description: Read-only verification that the sample noop playbook ran.
+risk: auto
+auto_run: true
+verifier: true
+steps:
+  - id: uptime
+    command: uptime
+    timeout_seconds: 10

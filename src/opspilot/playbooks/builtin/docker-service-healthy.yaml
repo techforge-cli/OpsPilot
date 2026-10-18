@@ -1,0 +1,13 @@
+id: docker-service-healthy
+title: Docker service healthy
+description: Read-only verification that Docker is active and responding.
+risk: auto
+auto_run: true
+verifier: true
+steps:
+  - id: active
+    command: systemctl is-active docker
+    timeout_seconds: 10
+  - id: info
+    command: docker info >/dev/null
+    timeout_seconds: 10

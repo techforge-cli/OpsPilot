@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "opspilot"
+version = "0.1.0"
+description = "Linux server administration assistant with native metrics and local LLM workflows"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "jinja2>=3.1",
+  "httpx>=0.27",
+  "pydantic>=2.8",
+  "pydantic-settings>=2.0",
+  "pyyaml>=6.0",
+  "uvicorn>=0.30",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.24",
+  "httpx>=0.27",
+]
+
+[project.scripts]
+opspilot = "opspilot.__main__:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+opspilot = ["playbooks/builtin/*.yaml", "playbooks/builtin/*.yml", "templates/*.html", "static/*"]
+
+[tool.setuptools.data-files]
+"opspilot/playbooks/builtin" = ["opspilot/playbooks/builtin/*.yaml", "opspilot/playbooks/builtin/*.yml"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"

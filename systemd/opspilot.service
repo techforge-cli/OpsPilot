@@ -1,0 +1,11 @@
+[Unit]
+Description=OpsPilot server administration assistant
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/opspilot
+Environment=OPSPILOT_DATA_DIR=/var/lib/opspilot
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
