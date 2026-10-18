@@ -1,8 +1,41 @@
-<!DOCTYPE html>
-<html>
-<head><title>OpsPilot</title></head>
-<body>
-<h1>OpsPilot</h1>
-<p>Latest status and incidents appear here.</p>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}OpsPilot · overview{% endblock %}
+{% block content %}
+<h1>Overview</h1>
+
+<div id="status" hx-get="/partials/status" hx-trigger="every 15s" hx-swap="innerHTML">
+  {% include "_status.html" %}
+</div>
+
+<h2>Latest diagnosis</h2>
+<div class="card">
+  {% if latest_incident %}
+    <p>
+      <span class="status {{ latest_incident.status }}">{{ latest_incident.status }}</span>
+      <strong>{{ latest_incident.issue_id }}</strong> on {{ latest_incident.host_id }}
+    </p>
+    <p>{{ latest_incident.explanation }}</p>
+  {% else %}
+    <p class="dim">No incidents recorded yet.</p>
+  {% endif %}
+</div>
+
+<h2>Queued confirmations</h2>
+{% if pending %}
+<table>
+  <thead><tr><th>issue</th><th>host</th><th>playbook</th><th></th></tr></thead>
+  <tbody>
+  {% for incident in pending %}
+    <tr>
+      <td>{{ incident.issue_id }}</td>
+      <td>{{ incident.host_id }}</td>
+      <td>{{ incident.playbook_id }}</td>
+      <td><a href="/incidents/{{ incident.id }}">review</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="dim">Nothing waiting on you.</p>
+{% endif %}
+{% endblock %}

@@ -1,12 +1,25 @@
-<!DOCTYPE html>
-<html>
-<head><title>OpsPilot Incidents</title></head>
-<body>
+{% extends "base.html" %}
+{% block title %}OpsPilot · incidents{% endblock %}
+{% block content %}
 <h1>Incidents</h1>
-<ul>
-{% for event in events %}
-<li>{{ event.event_type }} - {{ event.message }}</li>
-{% endfor %}
-</ul>
-</body>
-</html>
+<table>
+  <thead>
+    <tr><th>created</th><th>host</th><th>issue</th><th>severity</th><th>status</th><th>playbook</th><th></th></tr>
+  </thead>
+  <tbody>
+  {% for incident in incidents %}
+    <tr>
+      <td class="dim">{{ incident.created_at }}</td>
+      <td>{{ incident.host_id }}</td>
+      <td>{{ incident.issue_id }}</td>
+      <td>{{ incident.severity }}</td>
+      <td><span class="status {{ incident.status }}">{{ incident.status }}</span></td>
+      <td>{{ incident.playbook_id or "—" }}</td>
+      <td><a href="/incidents/{{ incident.id }}">details</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="dim">No incidents.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

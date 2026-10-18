@@ -1,12 +1,10 @@
-<!DOCTYPE html>
-<html>
-<head><title>OpsPilot Login</title></head>
-<body>
+{% extends "base.html" %}
+{% block title %}OpsPilot · login{% endblock %}
+{% block content %}
 <h1>Login</h1>
 <form method="post" action="/login">
-<input name="username" />
-<input name="password" type="password" />
-<button type="submit">Login</button>
+  <p><input name="username" placeholder="username" autocomplete="username"></p>
+  <p><input name="password" type="password" placeholder="password" autocomplete="current-password"></p>
+  <button type="submit">Login</button>
 </form>
-</body>
-</html>
+{% endblock %}

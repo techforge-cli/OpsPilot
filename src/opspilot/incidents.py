@@ -13,6 +13,8 @@ class IncidentStatus(str, Enum):
     BLOCKED = "blocked"
     RESOLVED = "resolved"
     UNRESOLVED_RECOMMENDED = "unresolved_recommended"
+    DISMISSED = "dismissed"
+    EXECUTING = "executing"
 
 
 @dataclass
@@ -29,6 +31,10 @@ class Incident:
     recommendation_verifier_id: str | None = None
     verifier_output: str | None = None
     recommended_explanation: str | None = None
+    playbook_id: str | None = None
+    verifier_id: str | None = None
+    created_at: str = ""
+    updated_at: str = ""
 
 
 def _incident_id(value) -> str | None:
@@ -41,7 +47,6 @@ def _incident_id(value) -> str | None:
     return str(value)
 
 
-
 class IncidentRepository:
     def __init__(self, conn):
         self.conn = conn
@@ -49,28 +54,85 @@ class IncidentRepository:
     def save(self, incident: Incident) -> None:
         now = datetime.now(UTC).isoformat()
         self.conn.execute(
-            """INSERT OR REPLACE INTO incidents (id, host_id, status, issue_id, severity, created_at, updated_at, summary, explanation)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO incidents (
+                id, host_id, status, issue_id, severity,
+                created_at, updated_at, summary, explanation,
+                recommended, recommendation_playbook_id, recommendation_verifier_id,
+                verifier_output, recommended_explanation, playbook_id, verifier_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                host_id = excluded.host_id,
+                status = excluded.status,
+                issue_id = excluded.issue_id,
+                severity = excluded.severity,
+                updated_at = excluded.updated_at,
+                summary = excluded.summary,
+                explanation = excluded.explanation,
+                recommended = excluded.recommended,
+                recommendation_playbook_id = excluded.recommendation_playbook_id,
+                recommendation_verifier_id = excluded.recommendation_verifier_id,
+                verifier_output = excluded.verifier_output,
+                recommended_explanation = excluded.recommended_explanation,
+                playbook_id = excluded.playbook_id,
+                verifier_id = excluded.verifier_id""",
             (
                 incident.id,
                 incident.host_id,
                 incident.status,
                 incident.issue_id,
                 incident.severity,
-                getattr(incident, "created_at", now),
-                now,
+                incident.created_at or now,
+                incident.updated_at or now,
                 incident.summary,
                 incident.explanation,
+                1 if incident.recommended else 0,
+                incident.recommendation_playbook_id,
+                incident.recommendation_verifier_id,
+                incident.verifier_output,
+                incident.recommended_explanation,
+                incident.playbook_id,
+                incident.verifier_id,
             ),
         )
         self.conn.commit()
 
     def get(self, incident_id: str):
         row = self.conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,)).fetchone()
-        return row
+        if row is None:
+            return None
+        return self._row_to_incident(row)
 
     def list_incidents(self):
-        return self.conn.execute("SELECT * FROM incidents ORDER BY created_at DESC").fetchall()
+        return [self._row_to_incident(row) for row in self.conn.execute("SELECT * FROM incidents ORDER BY created_at DESC").fetchall()]
+
+    def find_active(self, host_id: str, issue_id: str):
+        row = self.conn.execute(
+            """SELECT * FROM incidents WHERE host_id = ? AND issue_id = ? 
+               AND status IN ('open', 'pending_confirmation', 'unresolved_recommended', 'executing')""",
+            (host_id, issue_id),
+        ).fetchone()
+        return self._row_to_incident(row) if row else None
+
+    def list_runs(self, incident_id: str):
+        return self.conn.execute(
+            "SELECT * FROM incident_runs WHERE incident_id = ? ORDER BY started_at DESC",
+            (incident_id,),
+        ).fetchall()
+
+    def set_status(self, incident_id: str, status: str, *, expected: str | None = None) -> bool:
+        now = datetime.now(UTC).isoformat()
+        if expected is None:
+            cur = self.conn.execute(
+                "UPDATE incidents SET status = ?, updated_at = ? WHERE id = ?",
+                (status, now, incident_id),
+            )
+        else:
+            cur = self.conn.execute(
+                "UPDATE incidents SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
+                (status, now, incident_id, expected),
+            )
+        self.conn.commit()
+        return cur.rowcount == 1
 
     def record_run(self, incident_id, host_id=None, playbook_id=None, verifier_id=None, status="completed", exit_code=None, stdout=None, stderr=None, detail=None):
         import json as _json
@@ -94,6 +156,26 @@ class IncidentRepository:
             ),
         )
         self.conn.commit()
+
+    def _row_to_incident(self, row: sqlite3.Row) -> Incident:
+        return Incident(
+            id=row["id"],
+            host_id=row["host_id"],
+            issue_id=row["issue_id"],
+            severity=row["severity"],
+            status=row["status"],
+            summary=row["summary"],
+            explanation=row["explanation"],
+            recommended=bool(row["recommended"]) if row["recommended"] is not None else False,
+            recommendation_playbook_id=row["recommendation_playbook_id"],
+            recommendation_verifier_id=row["recommendation_verifier_id"],
+            verifier_output=row["verifier_output"],
+            recommended_explanation=row["recommended_explanation"],
+            playbook_id=row["playbook_id"],
+            verifier_id=row["verifier_id"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
 
 
 class IncidentManager:
@@ -128,7 +210,7 @@ class IncidentManager:
             except (OSError, RuntimeError, ValueError, TypeError, sqlite3.Error):
                 pass
 
-    def create_issue(self, host_id, issue_id, severity, summary, explanation, *, status="open"):
+    def create_issue(self, host_id, issue_id, severity, summary, explanation, *, status="open", playbook_id=None, verifier_id=None):
         incident = Incident(
             id=str(uuid.uuid4()),
             host_id=host_id,
@@ -137,6 +219,10 @@ class IncidentManager:
             status=status,
             summary=summary,
             explanation=explanation,
+            playbook_id=playbook_id,
+            verifier_id=verifier_id,
+            created_at=datetime.now(UTC).isoformat(),
+            updated_at=datetime.now(UTC).isoformat(),
         )
         self.incidents[incident.id] = incident
         self._persist(incident)
@@ -168,6 +254,22 @@ class IncidentManager:
             target.explanation = target.explanation + "\nVerifier output: " + text
         if "playbook_id" in kwargs or "recommended_playbook_id" in kwargs:
             self.recommend(target, **kwargs)
+        self._persist(target)
+        return target
+
+    def mark_unresolved_with_verifier(self, incident, verifier_output=None, *args, **kwargs):
+        target = self._get(incident)
+        target.status = "unresolved_recommended"
+        target.recommended = True
+        output = verifier_output
+        if output is None and args:
+            output = args[0]
+        if output is None:
+            output = kwargs.get("verifier_output", kwargs.get("output"))
+        if output is not None:
+            text = str(output)
+            target.verifier_output = text
+            target.explanation = target.explanation + "\nVerifier output: " + text
         self._persist(target)
         return target
 

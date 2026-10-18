@@ -1,12 +1,22 @@
-<!DOCTYPE html>
-<html>
-<head><title>OpsPilot Playbooks</title></head>
-<body>
+{% extends "base.html" %}
+{% block title %}OpsPilot · playbooks{% endblock %}
+{% block content %}
 <h1>Playbooks</h1>
-<ul>
-{% for playbook in playbooks %}
-<li>{{ playbook.id }} - {{ playbook.title }}</li>
-{% endfor %}
-</ul>
-</body>
-</html>
+<table>
+  <thead><tr><th>id</th><th>title</th><th>risk</th><th>auto_run</th><th>verifier</th><th>type</th></tr></thead>
+  <tbody>
+  {% for playbook in playbooks %}
+    <tr>
+      <td>{{ playbook.id }}</td>
+      <td>{{ playbook.title }}</td>
+      <td>{{ playbook.risk }}</td>
+      <td>{{ "yes" if playbook.auto_run else "no" }}</td>
+      <td>{{ playbook.verifier_id or "—" }}</td>
+      <td>{{ "verifier" if playbook.is_verifier else ("builtin" if playbook.is_builtin else "custom") }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="dim">No playbooks.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

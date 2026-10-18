@@ -1,12 +1,20 @@
-<!DOCTYPE html>
-<html>
-<head><title>OpsPilot Audit</title></head>
-<body>
+{% extends "base.html" %}
+{% block title %}OpsPilot · audit{% endblock %}
+{% block content %}
 <h1>Audit</h1>
-<ul>
-{% for event in events %}
-<li>{{ event.event_type }} - {{ event.message }}</li>
-{% endfor %}
-</ul>
-</body>
-</html>
+<table>
+  <thead><tr><th>created</th><th>host</th><th>type</th><th>message</th></tr></thead>
+  <tbody>
+  {% for event in events %}
+    <tr>
+      <td class="dim">{{ event.created_at }}</td>
+      <td>{{ event.host_id or "—" }}</td>
+      <td>{{ event.event_type }}</td>
+      <td>{{ event.message }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" class="dim">No audit events.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

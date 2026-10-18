@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}OpsPilot · settings{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+<table>
+  <tbody>
+    <tr><th>bind host</th><td>{{ settings.bind_host }}</td></tr>
+    <tr><th>bind port</th><td>{{ settings.bind_port }}</td></tr>
+    <tr><th>ollama base url</th><td>{{ settings.ollama_base_url }}</td></tr>
+    <tr><th>ollama model</th><td>{{ settings.ollama_model }}</td></tr>
+    <tr><th>ollama timeout</th><td>{{ settings.ollama_timeout }}s</td></tr>
+    <tr><th>collection interval</th><td>{{ settings.interval_seconds }}s</td></tr>
+    <tr><th>global auto mode</th><td>{{ settings.global_auto_mode }}</td></tr>
+    <tr><th>snapshot retention</th><td>{{ settings.snapshot_retention_days }} days</td></tr>
+    <tr><th>read-only web mode</th><td>{{ settings.read_only_web_mode }}</td></tr>
+  </tbody>
+</table>
+{% endblock %}

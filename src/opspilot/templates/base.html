@@ -1,2 +1,24 @@
 <!DOCTYPE html>
-<html><head><title>OpsPilot</title></head><body>{% block content %}{% endblock %}</body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}OpsPilot{% endblock %}</title>
+<link rel="stylesheet" href="/static/app.css">
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="/">OpsPilot</a>
+  <a href="/">overview</a>
+  <a href="/incidents">incidents</a>
+  <a href="/playbooks">playbooks</a>
+  <a href="/hosts">hosts</a>
+  <a href="/audit">audit</a>
+  <a href="/settings">settings</a>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

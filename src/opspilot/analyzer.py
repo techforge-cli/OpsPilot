@@ -2,6 +2,7 @@ import contextlib
 import json
 import logging
 
+import httpx
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("opspilot.analyzer")
@@ -31,6 +32,7 @@ class Analyzer:
         if self.audit is None and args:
             self.audit = args[0]
         self.logger = kwargs.get("logger", logger)
+        self.timeout = kwargs.get("timeout", 60)
 
     def _catalog_ids(self, playbooks):
         ids = set()
@@ -45,7 +47,7 @@ class Analyzer:
         return ids
 
     def _post(self, body):
-        response = self.client.post(f"{self.base_url}/v1/chat/completions", json=body, timeout=60)
+        response = self.client.post(f"{self.base_url}/v1/chat/completions", json=body, timeout=self.timeout)
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"]
 
@@ -110,7 +112,7 @@ class Analyzer:
             try:
                 content = self._post(self._body(snapshot, playbooks, recommendation))
                 return self._parse(content, catalog_ids, recommendation, host_id)
-            except (OSError, RuntimeError, ValueError, TypeError, KeyError) as exc:
+            except (OSError, RuntimeError, ValueError, TypeError, KeyError, httpx.HTTPError) as exc:
                 last_error = exc
                 continue
         self._log_failure(host_id=host_id, detail={"error": str(last_error)}, audit=audit)

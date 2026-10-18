@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}OpsPilot · incident{% endblock %}
+{% block content %}
+<h1>Incident <span class="status {{ incident.status }}">{{ incident.status }}</span></h1>
+<div class="card">
+  <p><strong>{{ incident.issue_id }}</strong> on {{ incident.host_id }} · severity {{ incident.severity }}</p>
+  <p class="dim">created {{ incident.created_at }} · updated {{ incident.updated_at }}</p>
+  <p>{{ incident.explanation }}</p>
+  {% if incident.recommendation_playbook_id or incident.recommended_explanation %}
+    <p>
+      Recommendation:
+      <strong>{{ incident.recommendation_playbook_id or "none" }}</strong>
+      {% if incident.recommendation_verifier_id %}(verifier {{ incident.recommendation_verifier_id }}){% endif %}
+    </p>
+    {% if incident.recommended_explanation %}<p>{{ incident.recommended_explanation }}</p>{% endif %}
+  {% endif %}
+  {% if incident.verifier_output %}
+    <h3>Verifier output</h3>
+    <pre>{{ incident.verifier_output }}</pre>
+  {% endif %}
+
+  {% if incident.status == "pending_confirmation" %}
+  <form class="inline" method="post" action="/incidents/{{ incident.id }}/confirm"
+        hx-post="/incidents/{{ incident.id }}/confirm" hx-target="body" hx-push-url="true">
+    <button type="submit">Confirm and run</button>
+  </form>
+  {% endif %}
+  {% if incident.status in ("open", "pending_confirmation", "unresolved_recommended") %}
+  <form class="inline" method="post" action="/incidents/{{ incident.id }}/dismiss">
+    <button class="danger" type="submit">Dismiss</button>
+  </form>
+  {% endif %}
+</div>
+
+<h2>Runs</h2>
+<table>
+  <thead><tr><th>started</th><th>playbook</th><th>verifier</th><th>status</th><th>exit</th></tr></thead>
+  <tbody>
+  {% for run in runs %}
+    <tr>
+      <td class="dim">{{ run.started_at }}</td>
+      <td>{{ run.playbook_id or "—" }}</td>
+      <td>{{ run.verifier_id or "—" }}</td>
+      <td>{{ run.status }}</td>
+      <td>{{ run.exit_code if run.exit_code is not none else "—" }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="dim">No runs.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

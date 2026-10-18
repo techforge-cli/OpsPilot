@@ -1,0 +1,19 @@
+<div class="grid">
+  {% for host in hosts %}
+  <div class="card">
+    <h3>{{ host.name }} <span class="tag">{{ host.execution_mode }}</span></h3>
+    {% set snap = snapshots.get(host.id) %}
+    {% if snap %}
+      {% set load = snap.metrics.load %}
+      {% set mem = snap.metrics.memory %}
+      <p class="dim">{{ snap.collected_at }}</p>
+      <p>
+        load: {{ "%.2f"|format(load.one_minute) if load.one_minute is defined else "?" }} ·
+        mem avail: {{ mem.mem_available_kb // 1024 if mem.mem_available_kb is defined else "?" }} MiB
+      </p>
+    {% else %}
+      <p class="dim">no snapshot yet</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>

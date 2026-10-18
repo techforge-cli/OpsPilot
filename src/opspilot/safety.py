@@ -43,6 +43,7 @@ class SafetyResult:
 
 def _is_read_only_command(command: str) -> bool:
     lowered = command.lower()
+    lowered = re.sub(r">+\s*/dev/null", "", lowered)
     write_markers = (">", ">>", "tee ", "rm ", "mv ", "cp ", "chmod ", "chown ", "dd ", "mkfs", "systemctl restart", "systemctl stop", "systemctl disable")
     return not any(marker in lowered for marker in write_markers)
 

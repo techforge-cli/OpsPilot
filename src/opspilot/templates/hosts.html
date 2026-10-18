@@ -1,12 +1,22 @@
-<!DOCTYPE html>
-<html>
-<head><title>OpsPilot Hosts</title></head>
-<body>
+{% extends "base.html" %}
+{% block title %}OpsPilot · hosts{% endblock %}
+{% block content %}
 <h1>Hosts</h1>
-<ul>
-{% for host in hosts %}
-<li>{{ host.id }} - {{ host.name }} ({{ host.execution_mode }})</li>
-{% endfor %}
-</ul>
-</body>
-</html>
+<table>
+  <thead><tr><th>id</th><th>name</th><th>address</th><th>mode</th><th>tags</th><th>active</th></tr></thead>
+  <tbody>
+  {% for host in hosts %}
+    <tr>
+      <td>{{ host.id }}</td>
+      <td>{{ host.name }}</td>
+      <td>{{ host.address }}</td>
+      <td>{{ host.execution_mode }}</td>
+      <td>{{ host.tags | join(", ") if host.tags else "—" }}</td>
+      <td>{{ "yes" if host.is_active else "no" }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="dim">No hosts.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
