@@ -103,7 +103,7 @@
     <h2>Bundled versus custom</h2>
     <ul>
       <li><strong>Bundled</strong> — sourced from the package, read-only, flagged as builtin.</li>
-      <li><strong>Custom</strong> — authored by an admin. Each save creates an immutable revision, so an old incident always points at the exact version that ran.</li>
+      <li><strong>Custom</strong> — admin-authored playbooks are not authorable yet. The storage schema already reserves immutable revisions so an old incident can point at the exact version that ran once authoring lands.</li>
     </ul>
     <div class="callout">
       <strong>No match, no run.</strong> If the analyzer names a playbook that does not

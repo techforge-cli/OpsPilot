@@ -88,7 +88,7 @@ incident <span class="ok">resolved</span> · logged to audit.jsonl
         <article class="card">
           <span class="idx">03</span>
           <h3>Governed playbooks</h3>
-          <p>Bundled playbooks ship read-only. Custom playbooks you author create immutable revisions, so every run is traceable.</p>
+          <p>Bundled playbooks ship read-only, executed only when the safety guard clears them and the matching verifier confirms recovery.</p>
         </article>
         <article class="card">
           <span class="idx">04</span>
@@ -135,7 +135,7 @@ incident <span class="ok">resolved</span> · logged to audit.jsonl
           <li>Denylist blocks destructive command patterns before execution.</li>
           <li>Per-playbook risk tier chooses <code>auto</code> or <code>confirm</code>.</li>
           <li>Command timeouts are enforced and capped.</li>
-          <li>Bundled playbooks are read-only; custom edits become new revisions.</li>
+          <li>Bundled playbooks are read-only and versioned by release.</li>
           <li>No playbook match means no execution — it becomes a recommendation.</li>
         </ul>
       </div>
@@ -151,7 +151,7 @@ incident <span class="ok">resolved</span> · logged to audit.jsonl
     <span class="k">command</span>: uptime &amp;&amp; free -b
 <span class="k">verifier_id</span>: sample-verify
 </code></pre>
-        <p class="note-contrast">YAML playbooks. Read-only bundled set, mutable custom set with immutable revisions.</p>
+        <p class="note-contrast">YAML playbooks. Read-only bundled catalog, guarded by a denylist and a verifier.</p>
       </div>
     </div>
   </section>

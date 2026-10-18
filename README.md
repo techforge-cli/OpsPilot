@@ -17,10 +17,10 @@ safety guard, verifier, and permanent audit trail.
 
 - Native metric collection via Linux tools and `/proc`
 - Strict JSON analysis from a local Ollama model
-- Bundled read-only playbooks plus admin-created custom playbooks
+- Bundled read-only playbooks (custom playbook authoring is planned)
 - Safety guard before every remediation or verifier execution
 - Incident lifecycle with one final recommendation-only follow-up when unresolved
-- FastAPI + HTMX dashboard for status, incidents, playbooks, hosts, and audit
+- FastAPI + HTMX dashboard for live status, incidents, playbooks, hosts, and audit
 - SQLite storage with append-only JSONL audit journal
 - Optional SSH host execution
 
@@ -36,7 +36,15 @@ opspilot --config-check
 opspilot
 ```
 
-Open `http://127.0.0.1:8443/` by default.
+Open `http://127.0.0.1:8443/` by default. Leaving
+`OPSPILOT_ADMIN_PASSWORD` empty runs the dashboard in read-only mode: pages
+render, but confirming or dismissing an incident returns `403`. The scheduler
+still executes `auto`-tier playbooks headlessly when `OPSPILOT_GLOBAL_AUTO_MODE`
+is on.
+
+Confirmations are single-flight: the first `POST /incidents/{id}/confirm`
+transitions the incident to `executing`, and any concurrent or repeated call is
+refused with `409`.
 
 ## Configuration
 
@@ -50,8 +58,10 @@ Common environment variables:
 | `OPSPILOT_DATA_DIR` | `/var/lib/opspilot` | SQLite and audit data |
 | `OPSPILOT_OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama endpoint |
 | `OPSPILOT_OLLAMA_MODEL` | `qwen2.5:7b` | Model name |
+| `OPSPILOT_OLLAMA_TIMEOUT` | `60` | Seconds before an Ollama request is abandoned |
 | `OPSPILOT_INTERVAL_SECONDS` | `30` | Collection interval |
 | `OPSPILOT_GLOBAL_AUTO_MODE` | `false` | Enables auto execution |
+| `OPSPILOT_SNAPSHOT_RETENTION_DAYS` | `7` | Age after which raw snapshots are pruned |
 | `OPSPILOT_SSH_KEY_PATH` | `/etc/opspilot/operator.key` | SSH key for managed hosts |
 
 ## Development
@@ -72,7 +82,7 @@ share one SQLite database and one audit journal.
 
 Remediation only runs from the playbook catalog. The safety guard blocks
 dangerous command patterns, enforces timeouts, and can require confirmation.
-Bundled playbooks are read-only; custom playbooks create immutable revisions.
+Bundled playbooks are read-only; custom playbooks are not authorable yet.
 
 ## License
 

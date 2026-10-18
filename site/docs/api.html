@@ -62,7 +62,8 @@
     </table>
     <div class="callout">
       <strong>Read-only mode.</strong> With no <code>OPSPILOT_ADMIN_PASSWORD</code>, the
-      dashboard serves read-only pages and admin actions are refused.
+      dashboard serves read-only pages and the confirm and dismiss endpoints return
+      <code>403</code>.
     </div>
 
     <h2>Dashboard</h2>
@@ -72,7 +73,11 @@
         <tr><td><code>GET</code></td><td><code>/</code></td><td>Status overview.</td></tr>
         <tr><td><code>GET</code></td><td><code>/hosts</code></td><td>Host inventory and their state.</td></tr>
         <tr><td><code>GET</code></td><td><code>/incidents</code></td><td>Incident list and lifecycle status.</td></tr>
-        <tr><td><code>GET</code></td><td><code>/playbooks</code></td><td>Playbook catalog and revisions.</td></tr>
+        <tr><td><code>GET</code></td><td><code>/incidents/{id}</code></td><td>One incident with its recommendation, verifier output, and run history.</td></tr>
+        <tr><td><code>POST</code></td><td><code>/incidents/{id}/confirm</code></td><td>Runs the incident's playbook. Single-flight: an incident not in <code>pending_confirmation</code> is refused with <code>409</code>.</td></tr>
+        <tr><td><code>POST</code></td><td><code>/incidents/{id}/dismiss</code></td><td>Closes an active incident without running anything.</td></tr>
+        <tr><td><code>GET</code></td><td><code>/partials/status</code></td><td>HTMX fragment with per-host live status.</td></tr>
+        <tr><td><code>GET</code></td><td><code>/playbooks</code></td><td>Playbook catalog.</td></tr>
         <tr><td><code>GET</code></td><td><code>/audit</code></td><td>Audit journal view.</td></tr>
         <tr><td><code>GET</code></td><td><code>/settings</code></td><td>Effective settings.</td></tr>
       </tbody>
@@ -85,7 +90,7 @@
 curl -fsS http://127.0.0.1:8443/healthz
 
 <span class="c"># follow the audit journal while you work</span>
-tail -f /var/lib/opspilot/audit.jsonl | jq .</code></pre>
+tail -f /var/lib/opspilot/audit/audit.jsonl | jq .</code></pre>
 
     <h2>Storage artifacts</h2>
     <p>There is no API to import or export; the durable record is on disk in the data
