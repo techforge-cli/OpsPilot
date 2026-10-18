@@ -11,10 +11,10 @@ def test_root_requires_auth_in_admin_mode():
     assert response.status_code in (401, 302, 403)
 
 
-def test_root_allows_read_only_mode():
+def test_root_allows_read_only_mode_with_any_credentials():
     settings = Settings(data_dir="/tmp/opspilotweb_ro", ollama_base_url="x", ollama_model="m")
     client = TestClient(create_app(settings))
-    response = client.get("/")
+    response = client.get("/", auth=("user", "any-password"))
     assert response.status_code == 200
 
 
@@ -38,3 +38,32 @@ def test_healthz():
     response = client.get("/healthz")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_read_only_mode_requires_auth():
+    from fastapi.testclient import TestClient
+
+    from opspilot.config import Settings
+    from opspilot.web import create_app
+
+    settings = Settings(admin_password="", data_dir="/tmp/opspilot_test")
+    app = create_app(settings)
+    client = TestClient(app)
+    response = client.get("/")
+    assert response.status_code == 401
+
+
+def test_login_rate_limited():
+    from fastapi.testclient import TestClient
+
+    from opspilot.config import Settings
+    from opspilot.web import create_app
+
+    settings = Settings(admin_password="", data_dir="/tmp/opspilot_test")
+    app = create_app(settings)
+    client = TestClient(app)
+    response = None
+    for _ in range(6):
+        response = client.post("/login", data={"username": "x", "password": "y"})
+    assert response is not None
+    assert response.status_code == 429

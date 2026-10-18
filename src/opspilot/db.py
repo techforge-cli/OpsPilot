@@ -90,6 +90,10 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_metric_snapshots_host_time ON metric_snapshots (host_id, collected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_incidents_host_issue_status ON incidents (host_id, issue_id, status);
+CREATE INDEX IF NOT EXISTS idx_audit_events_created ON audit_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_incident_runs_incident ON incident_runs (incident_id);
 """
 
 COLUMNS_TO_ADD = {

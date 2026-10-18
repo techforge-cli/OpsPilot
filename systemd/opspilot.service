@@ -1,11 +1,33 @@
 [Unit]
 Description=OpsPilot server administration assistant
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
+Type=simple
+User=opspilot
+Group=opspilot
 ExecStart=/usr/local/bin/opspilot
 Environment=OPSPILOT_DATA_DIR=/var/lib/opspilot
+EnvironmentFile=-/etc/opspilot/opspilot.conf
 Restart=always
+RestartSec=5
+StateDirectory=opspilot
+ReadWritePaths=/var/lib/opspilot /etc/opspilot
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=true
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+LimitNOFILE=65536
+MemoryMax=512M
+CPUQuota=50%
 
 [Install]
 WantedBy=multi-user.target

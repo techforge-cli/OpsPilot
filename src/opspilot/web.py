@@ -1,5 +1,6 @@
 import hmac
 import threading
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -28,7 +29,21 @@ def create_app(settings: Settings):
     init_db(db_path)
     templates = Jinja2Templates(directory=Path(__file__).resolve().parent / "templates")
     app = FastAPI(title="OpsPilot")
+
+    @app.middleware("http")
+    async def security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none'"
+        if request.url.scheme == "https":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
     app.state.settings = settings
+    _login_attempts: dict[str, list[float]] = {}
+    _login_lock = threading.Lock()
     app.state.conn = connect(db_path)
     app.state.host_repo = HostRepository(app.state.conn)
     app.state.audit_repo = AuditRepository(app.state.conn, journal_path=data_path / "audit" / "audit.jsonl")
@@ -53,11 +68,17 @@ def create_app(settings: Settings):
     security = HTTPBasic(auto_error=False)
 
     def require_admin(request: Request, credentials: HTTPBasicCredentials | None = Depends(security)):  # noqa: B008
-        if not settings.admin_password:
-            return None
         cookie = request.cookies.get("opspilot_session")
         if cookie and hmac.compare_digest(cookie, _session_token(settings)):
             return "admin"
+        if not settings.admin_password:
+            if credentials is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
+                    headers={"WWW-Authenticate": 'Basic realm="OpsPilot"'},
+                )
+            return "read-only"
         if credentials is None or not hmac.compare_digest(
             credentials.password.encode("utf-8"), settings.admin_password.encode("utf-8")
         ):
@@ -119,6 +140,14 @@ def create_app(settings: Settings):
 
     @app.post("/login")
     async def login(request: Request):
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.monotonic()
+        with _login_lock:
+            attempts = _login_attempts.setdefault(client_ip, [])
+            attempts[:] = [t for t in attempts if now - t < 300]
+            if len(attempts) >= 5:
+                raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many login attempts")
+            attempts.append(now)
         username = None
         password = None
         try:

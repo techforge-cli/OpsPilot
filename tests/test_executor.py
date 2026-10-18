@@ -13,3 +13,18 @@ def test_executor_runs_step_and_captures_output(monkeypatch):
     result = executor.run(playbook, Mock(execution_mode="local"))
     assert result.healthy is True
     assert "hi" in result.stdout
+
+
+def test_shell_runner_timeout_returns_error_not_exception(monkeypatch):
+    import subprocess
+
+    from opspilot.collector import ShellRunner
+
+    def raise_timeout(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd="sleep 100", timeout=0.001)
+
+    monkeypatch.setattr(subprocess, "run", raise_timeout)
+    runner = ShellRunner()
+    result = runner.run("sleep 100", timeout=1)
+    assert result[0] == 124
+    assert "timed out" in result[2]

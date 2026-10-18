@@ -20,5 +20,8 @@ class ShellRunner:
             ]
         else:
             argv = ["bash", "-lc", command]
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False)
+        try:
+            proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False)
+        except subprocess.TimeoutExpired:
+            return 124, "", f"command timed out after {timeout}s", time.monotonic() - start
         return proc.returncode, proc.stdout, proc.stderr, time.monotonic() - start

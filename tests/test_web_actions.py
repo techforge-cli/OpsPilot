@@ -112,7 +112,7 @@ def test_confirm_refused_in_read_only_mode(tmp_path, harness):
     client = make_client(tmp_path, harness, read_only=True)
     incident = make_pending(client)
 
-    response = client.post(f"/incidents/{incident.id}/confirm", follow_redirects=False)
+    response = client.post(f"/incidents/{incident.id}/confirm", auth=("user", "any"), follow_redirects=False)
 
     assert response.status_code == 403
     stored = harness["app"].state.incident_repo.get(incident.id)
@@ -132,7 +132,7 @@ def test_dismiss_marks_incident(tmp_path, harness):
     assert stored.status == "dismissed"
 
 
-def test_read_only_mode_requires_no_password_but_blocks_writes(tmp_path, harness):
+def test_read_only_mode_requires_auth_but_blocks_writes(tmp_path, harness):
     client = make_client(tmp_path, harness, read_only=True)
-    assert client.get("/").status_code == 200
-    assert client.get("/incidents").status_code == 200
+    assert client.get("/", auth=("user", "any")).status_code == 200
+    assert client.get("/incidents", auth=("user", "any")).status_code == 200
