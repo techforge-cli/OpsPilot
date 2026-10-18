@@ -14,7 +14,6 @@ classifiers = [
   "Environment :: Web Environment",
   "Framework :: FastAPI",
   "Intended Audience :: System Administrators",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3",
   "Topic :: System :: Monitoring",
