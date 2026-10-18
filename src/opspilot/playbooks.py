@@ -21,6 +21,7 @@ class Playbook:
         builtin: bool = False,
         verifier: Playbook | None = None,
         applies_to: Any = None,
+        verifier_document: bool = False,
     ):
         self.id = id
         self.title = title
@@ -34,6 +35,7 @@ class Playbook:
         self.is_builtin = builtin
         self.verifier = verifier
         self.applies_to = applies_to
+        self.verifier_document = verifier_document
 
     @classmethod
     def from_dict(cls, data: dict, source: str):
@@ -56,10 +58,15 @@ class Playbook:
             issue_ids=list(issue_ids),
             builtin=source == "builtin",
             applies_to=applies_to,
+            verifier_document=bool(data.get("verifier", False)),
         )
 
     def commands(self) -> list[str]:
         return [str(step.get("command", "") if isinstance(step, dict) else step) for step in self.steps]
+
+    @property
+    def is_verifier(self) -> bool:
+        return bool(self.verifier_document)
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]

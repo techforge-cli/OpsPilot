@@ -1,0 +1,22 @@
+id: restart-docker-unhealthy
+title: Restart unhealthy Docker service
+description: Restarts the Docker daemon when it is unhealthy and verifies recovery.
+risk: confirm
+auto_run: false
+applies_to:
+  issue_ids:
+    - docker_service_unhealthy
+  hosts:
+    tags:
+      - docker
+preconditions:
+  - command: test -x /usr/bin/systemctl
+steps:
+  - id: restart
+    command: systemctl restart docker
+    timeout_seconds: 60
+    idempotent: false
+  - id: wait
+    command: sleep 5
+    timeout_seconds: 10
+verifier_id: docker-service-healthy
