@@ -1,8 +1,11 @@
 # OpsPilot
 
 [![CI](https://github.com/techforge-cli/OpsPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/techforge-cli/OpsPilot/actions/workflows/ci.yml)
+[![Pages](https://github.com/techforge-cli/OpsPilot/actions/workflows/pages.yml/badge.svg)](https://techforge-cli.github.io/OpsPilot/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
+
+**[Documentation →](https://techforge-cli.github.io/OpsPilot/)**
 
 
 Linux server administration assistant for Debian-family servers. OpsPilot collects
