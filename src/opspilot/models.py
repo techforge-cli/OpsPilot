@@ -150,6 +150,3 @@ class PlaybookRevisionRecord:
 # Interface aliases required by task contract
 HostRecord = Host
 MetricSnapshotRecord = SnapshotRecord
-IncidentRecord = IncidentRecord
-AuditEventRecord = AuditEventRecord
-PlaybookRevisionRecord = PlaybookRevisionRecord

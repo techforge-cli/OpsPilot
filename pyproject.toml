@@ -33,6 +33,13 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+opspilot = ["playbooks/builtin/*.yaml", "playbooks/builtin/*.yml", "templates/*.html", "static/*"]
+
+[tool.setuptools.data-files]
+"opspilot/playbooks/builtin" = ["opspilot/playbooks/builtin/*.yaml", "opspilot/playbooks/builtin/*.yml"]
+
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 testpaths = ["tests"]
 asyncio_mode = "auto"

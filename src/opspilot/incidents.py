@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import sqlite3
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
 
 
@@ -39,8 +41,72 @@ def _incident_id(value) -> str | None:
     return str(value)
 
 
+
+class IncidentRepository:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def save(self, incident: Incident) -> None:
+        now = datetime.now(UTC).isoformat()
+        self.conn.execute(
+            """INSERT OR REPLACE INTO incidents (id, host_id, status, issue_id, severity, created_at, updated_at, summary, explanation)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                incident.id,
+                incident.host_id,
+                incident.status,
+                incident.issue_id,
+                incident.severity,
+                getattr(incident, "created_at", now),
+                now,
+                incident.summary,
+                incident.explanation,
+            ),
+        )
+        self.conn.commit()
+
+    def get(self, incident_id: str):
+        row = self.conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,)).fetchone()
+        return row
+
+    def list_incidents(self):
+        return self.conn.execute("SELECT * FROM incidents ORDER BY created_at DESC").fetchall()
+
+    def record_run(self, incident_id, host_id=None, playbook_id=None, verifier_id=None, status="completed", exit_code=None, stdout=None, stderr=None, detail=None):
+        import json as _json
+        import uuid as _uuid
+        self.conn.execute(
+            """INSERT INTO incident_runs (id, incident_id, host_id, playbook_id, verifier_id, status, started_at, finished_at, exit_code, stdout, stderr, detail_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                str(_uuid.uuid4()),
+                incident_id,
+                host_id,
+                playbook_id,
+                verifier_id,
+                status,
+                datetime.now(UTC).isoformat(),
+                datetime.now(UTC).isoformat(),
+                exit_code,
+                stdout,
+                stderr,
+                _json.dumps(detail or {}),
+            ),
+        )
+        self.conn.commit()
+
+
 class IncidentManager:
-    def __init__(self):
+    def __init__(self, conn=None, repository=None, audit=None, *args, **kwargs):
+        if conn is None:
+            conn = kwargs.get("conn", kwargs.get("connection"))
+        if repository is None:
+            repository = kwargs.get("incident_repository", kwargs.get("repository"))
+        self.conn = conn
+        self.audit = audit
+        if repository is None and self.conn is not None:
+            repository = IncidentRepository(self.conn)
+        self.repository = repository
         self.incidents: dict[str, Incident] = {}
 
     def _get(self, ref):
@@ -55,6 +121,13 @@ class IncidentManager:
             return ref  # type: ignore[return-value]
         raise KeyError(f"unknown incident: {ref!r}")
 
+    def _persist(self, incident):
+        if self.repository is not None:
+            try:
+                self.repository.save(incident)
+            except (OSError, RuntimeError, ValueError, TypeError, sqlite3.Error):
+                pass
+
     def create_issue(self, host_id, issue_id, severity, summary, explanation, *, status="open"):
         incident = Incident(
             id=str(uuid.uuid4()),
@@ -66,6 +139,7 @@ class IncidentManager:
             explanation=explanation,
         )
         self.incidents[incident.id] = incident
+        self._persist(incident)
         return incident
 
     def create(self, *args, **kwargs):
@@ -76,6 +150,7 @@ class IncidentManager:
         target.status = "resolved"
         if verifier_output is not None:
             target.verifier_output = str(verifier_output)
+        self._persist(target)
         return target
 
     def mark_unresolved(self, incident, verifier_output=None, *args, **kwargs):
@@ -93,6 +168,7 @@ class IncidentManager:
             target.explanation = target.explanation + "\nVerifier output: " + text
         if "playbook_id" in kwargs or "recommended_playbook_id" in kwargs:
             self.recommend(target, **kwargs)
+        self._persist(target)
         return target
 
     def resolve_with_verifier(self, incident, *args, **kwargs):
@@ -128,6 +204,7 @@ class IncidentManager:
             target.status = "resolved"
             if verifier_output is not None:
                 target.verifier_output = str(verifier_output)
+            self._persist(target)
             return target
         output = verifier_output if verifier_output is not None else "verifier failed"
         text = str(output)
@@ -135,6 +212,7 @@ class IncidentManager:
         target.recommended = True
         target.verifier_output = text
         target.explanation = target.explanation + "\nVerifier output: " + text
+        self._persist(target)
         return target
 
     def recommend(self, incident, *args, **kwargs):
@@ -165,6 +243,7 @@ class IncidentManager:
         if explanation is not None:
             target.recommended_explanation = explanation
             target.explanation = target.explanation + "\nRecommendation: " + str(explanation)
+        self._persist(target)
         return target
 
     def mark_blocked(self, incident=None, *, incident_id=None, reason=None):
@@ -172,9 +251,11 @@ class IncidentManager:
         target.status = "blocked"
         if reason is not None:
             target.explanation = target.explanation + "\nBlocked: " + str(reason)
+        self._persist(target)
         return target
 
     def mark_pending_confirmation(self, incident=None, *, incident_id=None):
         target = self._get(incident if incident is not None else incident_id)
         target.status = "pending_confirmation"
+        self._persist(target)
         return target

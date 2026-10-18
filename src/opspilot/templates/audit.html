@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head><title>OpsPilot Audit</title></head>
+<body>
+<h1>Audit</h1>
+<ul>
+{% for event in events %}
+<li>{{ event.event_type }} - {{ event.message }}</li>
+{% endfor %}
+</ul>
+</body>
+</html>

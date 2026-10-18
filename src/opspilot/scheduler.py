@@ -1,18 +1,20 @@
 import asyncio
+import json
+import logging
 import sqlite3
 import threading
 import uuid
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 from opspilot.audit import AuditRepository
 from opspilot.collector import ShellRunner
 from opspilot.config import Settings
 from opspilot.hosts import HostRepository, default_local_host
-from opspilot.metrics import collect_native_snapshot as _METRIC_COLLECT_NATIVE
+from opspilot.incidents import IncidentManager
+from opspilot.metrics import collect_native_snapshot
+from opspilot.playbooks import load_builtin_playbooks
 
-_original_metric_collect = _METRIC_COLLECT_NATIVE
-collect_native_snapshot = _METRIC_COLLECT_NATIVE
+logger = logging.getLogger("opspilot.scheduler")
 
 
 def run_collection_loop(settings, collect_once):
@@ -24,28 +26,13 @@ def run_collection_loop(settings, collect_once):
     return loop()
 
 
-class _StartBackgroundDescriptor:
-    def __get__(self, obj, owner):
-        def factory(instance):
-            def fn(settings=None, repo=None):
-                if instance is None:
-                    return owner._start_background(settings, repo)
-                resolved_settings = settings if settings is not None else instance.settings
-                resolved_repo = repo if repo is not None else instance.repo
-                return owner._start_background(resolved_settings, resolved_repo)
-
-            return fn
-
-        return factory(obj)
-
-
 class Scheduler:
-    settings: Settings | None
-    repo: Any
-
-    def __init__(self, settings: Settings | None = None, repo: Any = None):
-        self.settings = settings
+    def __init__(self, settings=None, repo=None, **kwargs):
+        self.settings = self._coerce_settings(settings)
         self.repo = repo
+        self.analyzer = kwargs.get("analyzer", getattr(repo, "analyzer", None) if repo is not None else None)
+        self.incident_manager = kwargs.get("incident_manager", getattr(repo, "incident_manager", getattr(repo, "incidents", None)) if repo is not None else None)
+        self.playbooks = kwargs.get("playbooks", getattr(repo, "playbooks", None) if repo is not None else None)
         self.started = False
         self._stopped = False
         self._thread = None
@@ -54,39 +41,36 @@ class Scheduler:
         self._collect_count = 0
 
     @staticmethod
-    def _is_connection(value: Any) -> bool:
+    def _is_connection(value):
         return isinstance(value, sqlite3.Connection)
 
     @staticmethod
-    def _coerce_settings(settings: Any) -> Settings:
+    def _coerce_settings(settings):
         if isinstance(settings, Settings):
             return settings
-        # Allow a namespace/object that exposes the needed fields.
-        if hasattr(settings, "interval_seconds") and hasattr(settings, "data_dir"):
-            return settings  # type: ignore[return-value]
-        return Settings()  # type: ignore[call-arg]
+        if settings is not None and hasattr(settings, "interval_seconds") and hasattr(settings, "data_dir"):
+            return settings
+        return Settings()
 
-    def _connection(self) -> sqlite3.Connection | None:
+    def _connection(self):
         repo = self.repo
         if self._is_connection(repo):
             return repo
         if repo is None:
             return None
-        candidate = getattr(repo, "conn", None)
-        if self._is_connection(candidate):
-            return candidate
-        candidate = getattr(repo, "connection", None)
-        if self._is_connection(candidate):
-            return candidate
+        for name in ("conn", "connection", "db"):
+            candidate = getattr(repo, name, None)
+            if self._is_connection(candidate):
+                return candidate
         return None
 
-    def _hosts(self) -> list[Any]:
+    def _hosts(self):
         repo = self.repo
         candidates = []
         if repo is not None and callable(getattr(repo, "list_hosts", None)):
             try:
                 result = repo.list_hosts()
-            except Exception:
+            except (OSError, RuntimeError, ValueError, TypeError, sqlite3.Error):
                 result = None
             if isinstance(result, (list, tuple)):
                 candidates = list(result)
@@ -96,7 +80,7 @@ class Scheduler:
                 if callable(getattr(nested, "list_hosts", None)):
                     try:
                         result = nested.list_hosts()
-                    except Exception:
+                    except (OSError, RuntimeError, ValueError, TypeError, sqlite3.Error):
                         result = None
                     if isinstance(result, (list, tuple)):
                         candidates = list(result)
@@ -106,12 +90,12 @@ class Scheduler:
         if not candidates and conn is not None:
             try:
                 candidates = list(HostRepository(conn).list_hosts())
-            except Exception:
+            except (OSError, RuntimeError, ValueError, TypeError, sqlite3.Error):
                 candidates = []
         if not candidates:
             try:
                 candidates = [default_local_host()]
-            except Exception:
+            except (OSError, RuntimeError, ValueError, TypeError):
                 candidates = []
         validated = []
         for item in candidates:
@@ -121,10 +105,9 @@ class Scheduler:
                 validated.append(item)
         return validated or [default_local_host()]
 
-    def _audit(self) -> Any | None:
+    def _audit(self):
         repo = self.repo
         if repo is not None and callable(getattr(repo, "record", None)):
-            # Prefer an explicit repository only when it really records.
             return repo
         if repo is not None:
             for name in ("audit", "audit_repo", "audit_repository", "audits"):
@@ -136,7 +119,47 @@ class Scheduler:
             return AuditRepository(conn)
         return None
 
-    def _host_fields(self, host: Any) -> dict[str, Any]:
+    def _playbooks(self):
+        if self.playbooks is not None:
+            if callable(getattr(self.playbooks, "list_playbooks", None)):
+                try:
+                    return list(self.playbooks.list_playbooks())
+                except (OSError, RuntimeError, ValueError, TypeError):
+                    pass
+            if isinstance(self.playbooks, (list, tuple)):
+                return list(self.playbooks)
+        repo = self.repo
+        if repo is not None:
+            for name in ("playbooks", "playbook_catalog", "catalog"):
+                value = getattr(repo, name, None)
+                if value is not None:
+                    if callable(getattr(value, "list_playbooks", None)):
+                        try:
+                            return list(value.list_playbooks())
+                        except (OSError, RuntimeError, ValueError, TypeError):
+                            pass
+                    if isinstance(value, (list, tuple)):
+                        return list(value)
+        try:
+            return load_builtin_playbooks()
+        except (OSError, RuntimeError, ValueError, TypeError):
+            return []
+
+    def _incident_manager(self):
+        if self.incident_manager is not None:
+            return self.incident_manager
+        repo = self.repo
+        if repo is not None:
+            for name in ("incident_manager", "incidents", "incident_repo", "incident_repository"):
+                value = getattr(repo, name, None)
+                if value is not None:
+                    return value
+        conn = self._connection()
+        if conn is not None:
+            return IncidentManager(conn)
+        return None
+
+    def _host_fields(self, host):
         def get(name, default=None):
             if isinstance(host, dict):
                 return host.get(name, default)
@@ -151,8 +174,8 @@ class Scheduler:
             "id": get("id", "local"),
         }
 
-    def collect_once(self) -> None:
-        settings = self._coerce_settings(self.settings)
+    def collect_once(self):
+        settings = self.settings
         conn = self._connection()
         for host in self._hosts():
             fields = self._host_fields(host)
@@ -164,29 +187,40 @@ class Scheduler:
                     ssh_key_path=fields["ssh_key_path"],
                     ssh_port=fields["ssh_port"],
                 )
-                collector = globals().get("collect_native_snapshot", _original_metric_collect)
-                try:
-                    import opspilot.metrics as _metrics_mod
-                    metric_version = getattr(_metrics_mod, "collect_native_snapshot", None)
-                    if metric_version is not None and metric_version is not _original_metric_collect:
-                        collector = metric_version
-                except Exception:
-                    pass
-                if not callable(collector):
-                    collector = _original_metric_collect
-                snapshot = collector(shell)  # type: ignore[assignment]
+                snapshot = collect_native_snapshot(
+                    shell,
+                    host_id=fields["id"],
+                    interval_seconds=getattr(settings, "interval_seconds", 30),
+                )
                 self._persist_snapshot(conn, fields["id"], snapshot, settings)
-            except Exception:
-                pass
+            except (OSError, RuntimeError, ValueError, TypeError, sqlite3.Error, KeyError, AttributeError):
+                logger.exception("collection failed for host %s", fields["id"])
+                continue
+            analyzer = self.analyzer
+            if analyzer is not None:
+                try:
+                    analysis = analyzer.analyze(snapshot, self._playbooks())
+                    if getattr(analysis, "status", None) == "issue" and getattr(analysis, "playbook_id", None):
+                        manager = self._incident_manager()
+                        if manager is not None and callable(getattr(manager, "create_issue", None)):
+                            manager.create_issue(
+                                fields["id"],
+                                getattr(analysis, "issue_id", "") or "issue",
+                                getattr(analysis, "severity", "warning"),
+                                getattr(analysis, "issue_id", "") or "issue",
+                                getattr(analysis, "explanation", ""),
+                            )
+                except (OSError, RuntimeError, ValueError, TypeError, sqlite3.Error, KeyError, AttributeError):
+                    logger.exception("analysis failed for host %s", fields["id"])
         audit = self._audit()
         if audit is not None:
             try:
                 audit.record("metric_collection_completed")
-            except Exception:
+            except (OSError, RuntimeError, ValueError, TypeError, sqlite3.Error):
                 pass
         self._collect_count += 1
 
-    def _persist_snapshot(self, conn, host_id: str, snapshot: Any, settings: Settings) -> None:
+    def _persist_snapshot(self, conn, host_id, snapshot, settings):
         if conn is None:
             return
         try:
@@ -196,50 +230,50 @@ class Scheduler:
                 (
                     str(uuid.uuid4()),
                     str(host_id),
-                    str(snapshot.get("collected_at", datetime.now(timezone.utc).isoformat())),
+                    str(snapshot.get("collected_at", datetime.now(UTC).isoformat())),
                     int(getattr(settings, "interval_seconds", 30)),
-                    __import__("json").dumps(snapshot, default=str),
+                    json.dumps(snapshot, default=str),
                 ),
             )
             conn.commit()
-        except Exception:
+        except (sqlite3.Error, ValueError, TypeError):
             try:
                 conn.rollback()
-            except Exception:
+            except sqlite3.Error:
                 pass
 
-    async def _run(self) -> None:
-        settings = self._coerce_settings(self.settings)
+    async def _run(self):
+        settings = self.settings
         interval = int(getattr(settings, "interval_seconds", 30) or 30)
         while not self._stopped:
             try:
                 await asyncio.to_thread(self.collect_once)
-            except Exception:
+            except (asyncio.CancelledError, RuntimeError, ValueError, TypeError):
                 pass
             if self._stopped:
                 break
             try:
                 await asyncio.sleep(interval)
-            except (asyncio.CancelledError, Exception):
+            except (asyncio.CancelledError, RuntimeError):
                 break
 
-    def _thread_main(self) -> None:
+    def _thread_main(self):
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self._task = self._loop.create_task(self._run())
         try:
             self._loop.run_until_complete(self._task)
-        except (asyncio.CancelledError, Exception):
+        except (asyncio.CancelledError, RuntimeError):
             pass
         finally:
             try:
                 self._loop.close()
-            except Exception:
+            except RuntimeError:
                 pass
 
     @staticmethod
-    def _start_background(settings: Any, repo: Any = None) -> "Scheduler":
-        instance = Scheduler(settings=settings, repo=repo)
+    def start_background(settings=None, repo=None, **kwargs):
+        instance = Scheduler(settings=settings, repo=repo, **kwargs)
         instance.started = True
         try:
             loop = asyncio.get_running_loop()
@@ -254,19 +288,17 @@ class Scheduler:
             thread.start()
         return instance
 
-    start_background = _StartBackgroundDescriptor()
-
-    def stop(self) -> None:
+    def stop(self):
         self._stopped = True
         if self._task is not None and self._loop is not None:
             try:
                 self._loop.call_soon_threadsafe(self._task.cancel)
-            except Exception:
+            except RuntimeError:
                 pass
         if self._task is not None and self._loop is None:
             try:
                 self._task.cancel()
-            except Exception:
+            except RuntimeError:
                 pass
         if self._thread is not None and self._thread.is_alive():
             self._thread.join(timeout=5)

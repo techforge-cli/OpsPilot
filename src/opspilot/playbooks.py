@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+try:
+    from importlib.resources import files as resource_files
+except (ImportError, OSError):  # pragma: no cover
+    resource_files = None
 
 
 class Playbook:
@@ -77,11 +84,17 @@ def _candidate_builtin_dirs(path: str | Path | None = None):
         yield Path(path)
         return
     seen: set[str] = set()
-    for candidate in (
+    candidates = [
         _REPO_ROOT / "opspilot" / "playbooks" / "builtin",
         Path.cwd() / "opspilot" / "playbooks" / "builtin",
         Path(__file__).resolve().parent / "playbooks" / "builtin",
-    ):
+    ]
+    if resource_files is not None:
+        try:
+            candidates.append(Path(str(resource_files("opspilot") / "playbooks" / "builtin")))
+        except (OSError, RuntimeError, ValueError, TypeError):
+            _ = None
+    for candidate in candidates:
         try:
             key = str(candidate.resolve())
         except OSError:
@@ -119,3 +132,35 @@ def load_builtin_playbooks(path: str | Path | None = None) -> list[Playbook]:
                 continue
             playbooks.append(Playbook.from_dict(document, source="builtin"))
     return playbooks
+
+
+class PlaybookRepository:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def save(self, playbook: Playbook) -> None:
+        now = datetime.now(UTC).isoformat()
+        self.conn.execute(
+            """INSERT OR REPLACE INTO playbooks (id, kind, title, is_builtin, source, current_revision_id, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                playbook.id,
+                "verifier" if playbook.is_verifier else "playbook",
+                playbook.title,
+                int(playbook.is_builtin),
+                playbook.source,
+                None,
+                now,
+                now,
+            ),
+        )
+        self.conn.commit()
+
+    def list_playbooks(self) -> list[Playbook]:
+        return load_builtin_playbooks()
+
+    def get(self, playbook_id: str) -> Playbook | None:
+        for playbook in load_builtin_playbooks():
+            if playbook.id == playbook_id:
+                return playbook
+        return None

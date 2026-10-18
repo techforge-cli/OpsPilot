@@ -2,11 +2,10 @@ import json
 from unittest.mock import Mock
 
 from opspilot.analyzer import Analyzer
-from opspilot.playbooks import Playbook
-from opspilot.incidents import IncidentManager
 from opspilot.executor import PlaybookExecutor
+from opspilot.incidents import IncidentManager
 from opspilot.models import Host
-
+from opspilot.playbooks import Playbook
 
 ANALYSIS_JSON = {
     "status": "issue",
@@ -30,8 +29,8 @@ def _analyzer():
 
 
 def test_incident_resolver_flow_runs_once():
-    analyzer, analysis_json = _analyzer()
-    analysis = analyzer.analyze({"metrics": {}}, [{"id": "restart-service", "description": "restart"}])
+    analyzer, _analysis_json = _analyzer()
+    analysis = analyzer.analyze({"metrics": {}}, [{"id": "restart-service", "description": "restart"}, {"id": "service-healthy", "description": "healthy"}])
     assert analysis.playbook_id == "restart-service"
 
     playbook = Playbook.from_dict(
@@ -60,8 +59,8 @@ def test_incident_resolver_flow_runs_once():
 
 
 def test_incident_resolver_flow_failed_execution():
-    analyzer, analysis_json = _analyzer()
-    analysis = analyzer.analyze({"metrics": {}}, [{"id": "restart-service", "description": "restart"}])
+    analyzer, _analysis_json = _analyzer()
+    analysis = analyzer.analyze({"metrics": {}}, [{"id": "restart-service", "description": "restart"}, {"id": "service-healthy", "description": "healthy"}])
     assert analysis.playbook_id == "restart-service"
 
     playbook = Playbook.from_dict(

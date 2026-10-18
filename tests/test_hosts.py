@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 
 from opspilot.db import connect, init_db
-from opspilot.hosts import default_local_host, HostRepository
+from opspilot.hosts import HostRepository, default_local_host
 
 
 def test_default_local_host_is_saved():

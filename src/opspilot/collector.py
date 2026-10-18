@@ -1,4 +1,3 @@
-import shlex
 import subprocess
 import time
 
@@ -21,5 +20,5 @@ class ShellRunner:
             ]
         else:
             argv = ["bash", "-lc", command]
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+        proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False)
         return proc.returncode, proc.stdout, proc.stderr, time.monotonic() - start

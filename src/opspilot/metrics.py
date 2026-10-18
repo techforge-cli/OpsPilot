@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+import uuid
+from datetime import UTC, datetime
 
 
 def parse_meminfo(text: str) -> dict:
@@ -49,7 +50,7 @@ def parse_df(text: str) -> list[dict]:
     return rows
 
 
-def collect_native_snapshot(shell) -> dict:
+def collect_native_snapshot(shell, host_id="local", interval_seconds=30, snapshot_id=None) -> dict:
     commands = {
         "loadavg": "cat /proc/loadavg",
         "meminfo": "cat /proc/meminfo",
@@ -62,13 +63,17 @@ def collect_native_snapshot(shell) -> dict:
     loadavg = native_output["loadavg"][1].strip()
     df = native_output["df"][1]
     return {
-        "collected_at": datetime.now(timezone.utc).isoformat(),
+        "id": snapshot_id if snapshot_id is not None else str(uuid.uuid4()),
+        "host_id": host_id,
+        "collected_at": datetime.now(UTC).isoformat(),
+        "interval_seconds": interval_seconds,
         "metrics": {
             "load": parse_loadavg(loadavg),
             "memory": parse_meminfo(memory),
             "disk": {"filesystems": parse_df(df)},
         },
         "processes": native_output["ps"][1],
+        "services": [],
         "recent_errors": native_output["journal"][1],
         "commands": {name: code for name, (code, _, _, _) in native_output.items()},
     }

@@ -3,6 +3,7 @@ from pathlib import Path
 
 from opspilot.db import connect, init_db
 
+
 def test_init_creates_all_tables():
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "test.sqlite"

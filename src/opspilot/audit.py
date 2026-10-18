@@ -1,7 +1,7 @@
 import json
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from opspilot.journal import AuditJournal
@@ -46,24 +46,33 @@ class AuditRepository:
         if detail is None:
             detail = {}
         event_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc).isoformat()
-        self.conn.execute(
-            """INSERT INTO audit_events (id, host_id, created_at, event_type, message, detail_json)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (event_id, host_id, now, event_type, message, json.dumps(detail)),
-        )
-        self.conn.commit()
-        if self.journal is not None:
-            self.journal.append(
-                {
-                    "id": event_id,
-                    "host_id": host_id,
-                    "created_at": now,
-                    "event_type": event_type,
-                    "message": message,
-                    "detail": detail,
-                }
+        now = datetime.now(UTC).isoformat()
+        try:
+            self.conn.execute(
+                """INSERT INTO audit_events (id, host_id, created_at, event_type, message, detail_json)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (event_id, host_id, now, event_type, message, json.dumps(detail)),
             )
+            self.conn.commit()
+        except sqlite3.Error:
+            try:
+                self.conn.rollback()
+            except sqlite3.Error:
+                pass
+        if self.journal is not None:
+            try:
+                self.journal.append(
+                    {
+                        "id": event_id,
+                        "host_id": host_id,
+                        "created_at": now,
+                        "event_type": event_type,
+                        "message": message,
+                        "detail": detail,
+                    }
+                )
+            except OSError:
+                pass
 
     def list_events(self, limit: int = 100) -> list[sqlite3.Row]:
         return self.conn.execute(

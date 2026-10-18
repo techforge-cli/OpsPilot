@@ -1,4 +1,3 @@
-import json
 import sqlite3
 from pathlib import Path
 
@@ -34,6 +33,21 @@ CREATE TABLE IF NOT EXISTS incidents (
     explanation TEXT NOT NULL,
     FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS incident_runs (
+    id TEXT PRIMARY KEY,
+    incident_id TEXT NOT NULL,
+    host_id TEXT,
+    playbook_id TEXT,
+    verifier_id TEXT,
+    status TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    exit_code INTEGER,
+    stdout TEXT,
+    stderr TEXT,
+    detail_json TEXT NOT NULL DEFAULT '{}',
+    FOREIGN KEY (incident_id) REFERENCES incidents(id) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     host_id TEXT,
@@ -63,7 +77,13 @@ CREATE TABLE IF NOT EXISTS playbook_revisions (
     created_at TEXT NOT NULL,
     FOREIGN KEY (playbook_id) REFERENCES playbooks(id) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
+
 
 def connect(path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(path, timeout=30, isolation_level=None, check_same_thread=False)
@@ -71,6 +91,7 @@ def connect(path: Path) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
     return conn
+
 
 def init_db(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)

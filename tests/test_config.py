@@ -1,5 +1,6 @@
 from opspilot.config import Settings
 
+
 def test_settings_require_password_for_web():
     settings = Settings(  # type: ignore[call-arg]
         data_dir="/tmp/opspilot",

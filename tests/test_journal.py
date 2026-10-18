@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 from opspilot.journal import AuditJournal
 
