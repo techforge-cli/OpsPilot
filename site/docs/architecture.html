@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture — OpsPilot docs</title>
+<meta name="description" content="OpsPilot is one FastAPI process: scheduler, collector, analyzer, playbooks, safety, executor, incidents, audit, and dashboard.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../">&gt;_ OpsPilot</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="./">Docs</a>
+      <a href="architecture.html" aria-current="page">Architecture</a>
+      <a class="gh" href="https://github.com/techforge-cli/OpsPilot">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap docs-layout">
+  <aside class="docs-side">
+    <p class="side-title">Documentation</p>
+    <ul>
+      <li><a href="index.html">Getting started</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="playbooks.html">Playbooks</a></li>
+      <li><a href="safety.html">Safety</a></li>
+      <li><a href="architecture.html" aria-current="page">Architecture</a></li>
+      <li><a href="api.html">HTTP endpoints</a></li>
+    </ul>
+  </aside>
+
+  <main id="main" class="docs-body">
+    <h1>Architecture</h1>
+    <p>OpsPilot is deliberately one process. Every component shares one SQLite database and
+    one audit journal, and they talk to each other in process rather than over a network.
+    There is no broker, no worker fleet, and no external database.</p>
+
+    <h2>One pass through the system</h2>
+    <pre><code>scheduler ──▶ collector ──▶ analyzer ──▶ safety ──▶ executor ──▶ incidents
+   (30s)        (native)      (Ollama)     (guard)    (commands)    (lifecycle)
+                    │                          │
+                    └──────────▶ SQLite ◀──────┘
+                                   │
+                              audit.jsonl (append-only)
+                                   │
+                                web (FastAPI + HTMX)</code></pre>
+
+    <h2>Components</h2>
+    <table>
+      <thead><tr><th>Module</th><th>Responsibility</th></tr></thead>
+      <tbody>
+        <tr><td><code>scheduler</code></td><td>Drives the collection loop on the configured interval (30 seconds by default).</td></tr>
+        <tr><td><code>hosts</code></td><td>Inventory of local and SSH-reachable targets and their tags.</td></tr>
+        <tr><td><code>metrics</code></td><td>Native metric collection from Linux tools and <code>/proc</code>.</td></tr>
+        <tr><td><code>collector</code></td><td>Runs collectors and builds the canonical snapshot JSON.</td></tr>
+        <tr><td><code>analyzer</code></td><td>Ollama client over the OpenAI-compatible API plus strict-response validation.</td></tr>
+        <tr><td><code>playbooks</code></td><td>YAML catalog, builtin versus custom, immutable revisions.</td></tr>
+        <tr><td><code>safety</code></td><td>Policy validator for commands, timeouts, risk, and host scope.</td></tr>
+        <tr><td><code>executor</code></td><td>Runs playbook steps and verifier steps, capturing output.</td></tr>
+        <tr><td><code>incidents</code></td><td>Incident lifecycle and the final recommendation-only follow-up.</td></tr>
+        <tr><td><code>db</code> / <code>journal</code> / <code>audit</code></td><td>SQLite tables, the audit writer, and the append-only JSONL journal.</td></tr>
+        <tr><td><code>web</code></td><td>FastAPI, Jinja2 templates, and HTMX fragments for the dashboard.</td></tr>
+        <tr><td><code>config</code></td><td>Environment-backed settings.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>The LLM contract</h2>
+    <p>The analyzer sends a compact snapshot to Ollama and parses a strict JSON response. The
+    response names the issue, its severity, and the playbook and verifier to use. If the model
+    returns something that does not fit the contract, no remediation is attempted.</p>
+    <pre><code>{
+  "issue_id": "docker_service_unhealthy",
+  "severity": "high",
+  "summary": "Docker daemon is not responding",
+  "explanation": "docker info returned non-zero",
+  "playbook_id": "restart-docker-unhealthy",
+  "verifier_id": "docker-service-healthy"
+}</code></pre>
+
+    <h2>Storage</h2>
+    <ul>
+      <li><strong>SQLite</strong> holds hosts, snapshots, incidents, incident runs, playbook revisions, and settings.</li>
+      <li><strong>audit.jsonl</strong> is append-only: one JSON object per line, written as things happen.</li>
+      <li>Private SSH key material is never stored in the database; only the key path is.</li>
+    </ul>
+
+    <h2>Execution targets</h2>
+    <p>A host is <code>local</code> or <code>ssh</code>. SSH hosts use the configured private
+    key path and the system <code>ssh</code> executable. OpsPilot does not generate keys and
+    does not copy them for you. Every playbook run records the <code>host_id</code> it ran against.</p>
+
+    <h2>Design trade-offs</h2>
+    <ul>
+      <li><strong>SQLite over PostgreSQL</strong> — one less service to run; WAL is enough for a single admin box in this phase.</li>
+      <li><strong>Strict JSON over free text</strong> — the model's answer must be machine-checkable before anything can run.</li>
+      <li><strong>In-process over queues</strong> — the failure modes are local and visible, not distributed and mysterious.</li>
+    </ul>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>OpsPilot · MIT licensed</span>
+    <span><a href="../">Home</a> · <a href="https://github.com/techforge-cli/OpsPilot">GitHub</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

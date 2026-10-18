@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpsPilot — Linux server administration assistant</title>
+<meta name="description" content="OpsPilot collects native Linux metrics, analyzes them with a local Ollama model, and runs governed remediation playbooks with a safety guard, verifier, and permanent audit trail.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="./">&gt;_ OpsPilot</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="docs/">Docs</a>
+      <a href="docs/architecture.html">Architecture</a>
+      <a class="gh" href="https://github.com/techforge-cli/OpsPilot">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow">Debian-family · local LLM · governed remediation</p>
+        <h1>Your Linux fleet, explained and repaired on&#8209;prem.</h1>
+        <p class="lede">
+          OpsPilot collects native Linux metrics, sends a compact snapshot to a local
+          Ollama model, and runs governed remediation playbooks — with a safety guard,
+          a verifier, and a permanent audit trail. Nothing leaves the host.
+        </p>
+        <div class="cta-row">
+          <a class="btn" href="docs/">Get started</a>
+          <a class="btn ghost" href="https://github.com/techforge-cli/OpsPilot">View on GitHub</a>
+        </div>
+        <div class="tags">
+          <span class="tag hot">No cloud dependency</span>
+          <span class="tag">FastAPI + HTMX</span>
+          <span class="tag">SQLite</span>
+          <span class="tag">Append-only audit</span>
+        </div>
+      </div>
+
+      <div class="terminal" role="img" aria-label="Example OpsPilot terminal session: configuration check, then a detected and remediated incident.">
+        <div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+        <pre><code><span class="prompt">$</span> opspilot --config-check
+configuration valid; <span class="k">data_dir</span>=/var/lib/opspilot
+
+<span class="prompt">$</span> opspilot
+snapshot <span class="k">host</span>=web-01 <span class="k">load</span>=12.4 <span class="k">mem</span>=91%
+analyze  <span class="k">model</span>=qwen2.5:7b → issue=<span class="s">mem_pressure</span>
+guard    risk=<span class="warn">confirm</span> → awaiting approval
+remediate playbook=<span class="s">restart-docker-unhealthy</span>
+verify   <span class="ok">verifier ok</span> · metric recheck ok
+incident <span class="ok">resolved</span> · logged to audit.jsonl
+</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Capabilities</p>
+        <h2>Everything runs on the box you already own.</h2>
+        <p>One FastAPI process holds the collector, analyzer, playbook registry, safety
+        guard, executor, incident manager, audit journal, and dashboard.</p>
+      </div>
+
+      <div class="grid cols-3">
+        <article class="card">
+          <span class="idx">01</span>
+          <h3>Native metrics</h3>
+          <p>Load, memory, disk, and service state read straight from Linux tools and <code>/proc</code> — no agent or exporter to maintain.</p>
+        </article>
+        <article class="card">
+          <span class="idx">02</span>
+          <h3>Local analysis</h3>
+          <p>A compact snapshot goes to Ollama over the OpenAI-compatible API and returns strict JSON: issue, severity, playbook, verifier.</p>
+        </article>
+        <article class="card">
+          <span class="idx">03</span>
+          <h3>Governed playbooks</h3>
+          <p>Bundled playbooks ship read-only. Custom playbooks you author create immutable revisions, so every run is traceable.</p>
+        </article>
+        <article class="card">
+          <span class="idx">04</span>
+          <h3>Safety guard</h3>
+          <p>A denylist blocks dangerous patterns, timeouts are capped, and each playbook's risk tier decides auto-run versus confirmation.</p>
+        </article>
+        <article class="card">
+          <span class="idx">05</span>
+          <h3>Verifier + recheck</h3>
+          <p>Remediation is confirmed by a verifier script exiting 0 and a metric recheck. Unresolved incidents get one recommendation-only follow-up.</p>
+        </article>
+        <article class="card">
+          <span class="idx">06</span>
+          <h3>Permanent record</h3>
+          <p>State lives in SQLite; every action is appended to a JSONL audit journal you can ship, hash, or grep forever.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">How it works</p>
+        <h2>Collect, analyze, guard, verify.</h2>
+      </div>
+      <div class="grid cols-4">
+        <div class="step"><span class="num">1</span><div><h3>Collect</h3><p>Every 30&nbsp;seconds a snapshot is taken from the host.</p></div></div>
+        <div class="step"><span class="num">2</span><div><h3>Analyze</h3><p>Ollama returns a strict JSON verdict with a playbook and verifier id.</p></div></div>
+        <div class="step"><span class="num">3</span><div><h3>Guard</h3><p>The safety guard checks the denylist, timeout, and risk tier before anything runs.</p></div></div>
+        <div class="step"><span class="num">4</span><div><h3>Verify</h3><p>Verifier exit&nbsp;0 plus a metric recheck resolves the incident; the rest is audited.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="safety">
+    <div class="wrap grid cols-2" style="gap: var(--4xl); align-items:start;">
+      <div>
+        <p class="eyebrow">Safety first</p>
+        <h2>Remediation that can say no.</h2>
+        <p>OpsPilot never improvises a command. Only the playbook catalog can run, and
+        the safety guard sits between the decision and the shell.</p>
+        <ul class="safety-list">
+          <li>Denylist blocks destructive command patterns before execution.</li>
+          <li>Per-playbook risk tier chooses <code>auto</code> or <code>confirm</code>.</li>
+          <li>Command timeouts are enforced and capped.</li>
+          <li>Bundled playbooks are read-only; custom edits become new revisions.</li>
+          <li>No playbook match means no execution — it becomes a recommendation.</li>
+        </ul>
+      </div>
+      <div>
+        <pre><code><span class="c"># playbook: opspilot/playbooks/builtin</span>
+<span class="k">id</span>: sample-noop
+<span class="k">title</span>: Sample read-only playbook
+<span class="k">description</span>: Demonstration playbook that reads system state.
+<span class="k">risk</span>: auto
+<span class="k">auto_run</span>: true
+<span class="k">steps</span>:
+  - <span class="k">id</span>: load
+    <span class="k">command</span>: uptime &amp;&amp; free -b
+<span class="k">verifier_id</span>: sample-verify
+</code></pre>
+        <p class="note-contrast">YAML playbooks. Read-only bundled set, mutable custom set with immutable revisions.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="quickstart">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Quick start</p>
+        <h2>Up in four commands.</h2>
+      </div>
+      <pre><code><span class="prompt">$</span> python -m venv .venv &amp;&amp; . .venv/bin/activate
+<span class="prompt">$</span> pip install -e .
+<span class="prompt">$</span> export OPSPILOT_DATA_DIR=/var/lib/opspilot
+<span class="prompt">$</span> export OPSPILOT_ADMIN_PASSWORD='change-me'
+<span class="prompt">$</span> opspilot --config-check &amp;&amp; opspilot
+</code></pre>
+      <p>Open <code>http://127.0.0.1:8443/</code>. Leave <code>OPSPILOT_ADMIN_PASSWORD</code> empty
+      for read-only web mode. Full options are in the
+      <a href="docs/configuration.html">configuration reference</a>.</p>
+    </div>
+  </section>
+
+  <section id="cta">
+    <div class="wrap" style="text-align:center;">
+      <h2>Read the docs, then point it at a host.</h2>
+      <p style="margin-inline:auto;">Install, configure, author a playbook, and watch the audit trail fill up.</p>
+      <div class="cta-row" style="justify-content:center;">
+        <a class="btn" href="docs/">Getting started</a>
+        <a class="btn ghost" href="docs/playbooks.html">Playbook reference</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>OpsPilot · MIT licensed · designed with the <code>mono</code> style</span>
+    <span>
+      <a href="https://github.com/techforge-cli/OpsPilot">GitHub</a> ·
+      <a href="docs/">Docs</a> ·
+      <a href="https://github.com/techforge-cli/OpsPilot/releases">Releases</a>
+    </span>
+  </div>
+</footer>
+
+</body>
+</html>

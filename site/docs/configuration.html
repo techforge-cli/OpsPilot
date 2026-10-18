@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuration — OpsPilot docs</title>
+<meta name="description" content="Every OPSPILOT_ environment variable, its default, and what it does.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../">&gt;_ OpsPilot</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="./">Docs</a>
+      <a href="architecture.html">Architecture</a>
+      <a class="gh" href="https://github.com/techforge-cli/OpsPilot">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap docs-layout">
+  <aside class="docs-side">
+    <p class="side-title">Documentation</p>
+    <ul>
+      <li><a href="index.html">Getting started</a></li>
+      <li><a href="configuration.html" aria-current="page">Configuration</a></li>
+      <li><a href="playbooks.html">Playbooks</a></li>
+      <li><a href="safety.html">Safety</a></li>
+      <li><a href="architecture.html">Architecture</a></li>
+      <li><a href="api.html">HTTP endpoints</a></li>
+    </ul>
+  </aside>
+
+  <main id="main" class="docs-body">
+    <h1>Configuration</h1>
+    <p>All settings are environment variables prefixed with <code>OPSPILOT_</code>. They are
+    read once at startup by the settings object in <code>opspilot/config.py</code>.</p>
+
+    <h2>Environment variables</h2>
+    <table>
+      <thead>
+        <tr><th>Variable</th><th>Default</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>OPSPILOT_ADMIN_PASSWORD</code></td><td>empty</td><td>Enables admin web mode. Empty means read-only.</td></tr>
+        <tr><td><code>OPSPILOT_BIND_HOST</code></td><td><code>127.0.0.1</code></td><td>Address the web server binds to.</td></tr>
+        <tr><td><code>OPSPILOT_BIND_PORT</code></td><td><code>8443</code></td><td>Port the web server binds to.</td></tr>
+        <tr><td><code>OPSPILOT_DATA_DIR</code></td><td><code>/var/lib/opspilot</code></td><td>Directory for the SQLite database and audit journal.</td></tr>
+        <tr><td><code>OPSPILOT_OLLAMA_BASE_URL</code></td><td><code>http://127.0.0.1:11434</code></td><td>Ollama endpoint.</td></tr>
+        <tr><td><code>OPSPILOT_OLLAMA_MODEL</code></td><td><code>qwen2.5:7b</code></td><td>Model used for analysis.</td></tr>
+        <tr><td><code>OPSPILOT_INTERVAL_SECONDS</code></td><td><code>30</code></td><td>Seconds between metric snapshots.</td></tr>
+        <tr><td><code>OPSPILOT_GLOBAL_AUTO_MODE</code></td><td><code>false</code></td><td>When true, playbooks with the <code>auto</code> risk tier may run without confirmation.</td></tr>
+        <tr><td><code>OPSPILOT_SSH_KEY_PATH</code></td><td><code>/etc/opspilot/operator.key</code></td><td>SSH key used to reach managed hosts.</td></tr>
+        <tr><td><code>OPSPILOT_LOG_LEVEL</code></td><td><code>INFO</code></td><td>Log verbosity passed to the server.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Command-line overrides</h2>
+    <p>The launcher accepts a couple of flags that override the environment for a single run.</p>
+    <pre><code>opspilot --config-check        <span class="c"># validate settings and exit</span>
+opspilot --host 0.0.0.0        <span class="c"># override OPSPILOT_BIND_HOST</span>
+opspilot --port 9443           <span class="c"># override OPSPILOT_BIND_PORT</span></code></pre>
+
+    <h2>Read-only versus admin mode</h2>
+    <p>The <code>admin_password</code> setting decides the mode. This is a deliberate
+    default, not a hidden switch:</p>
+    <ul>
+      <li><strong>Empty password</strong> — read-only web mode. The dashboard renders state but rejects admin actions.</li>
+      <li><strong>Password set</strong> — admin mode. Sign-in at <code>/login</code> unlocks actions such as confirmations and playbook management.</li>
+    </ul>
+    <div class="callout warn">
+      <strong>Bind carefully.</strong> The default bind is <code>127.0.0.1</code>. Exposing
+      the dashboard on a public interface puts both state and admin actions on the network,
+      so pair a wider bind with a reverse proxy and TLS.
+    </div>
+
+    <h2>Data on disk</h2>
+    <p>Everything durable lives under <code>OPSPILOT_DATA_DIR</code>:</p>
+    <ul>
+      <li><code>opspilot.sqlite</code> — hosts, snapshots, incidents, playbook revisions, settings.</li>
+      <li><code>audit.jsonl</code> — append-only audit journal, one JSON object per line.</li>
+    </ul>
+    <p>Back up the directory and you have backed up OpsPilot.</p>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>OpsPilot · MIT licensed</span>
+    <span><a href="../">Home</a> · <a href="https://github.com/techforge-cli/OpsPilot">GitHub</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

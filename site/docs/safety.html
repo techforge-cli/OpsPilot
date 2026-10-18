@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Safety — OpsPilot docs</title>
+<meta name="description" content="How the OpsPilot safety guard evaluates playbooks before any command runs.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../">&gt;_ OpsPilot</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="./">Docs</a>
+      <a href="architecture.html">Architecture</a>
+      <a class="gh" href="https://github.com/techforge-cli/OpsPilot">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap docs-layout">
+  <aside class="docs-side">
+    <p class="side-title">Documentation</p>
+    <ul>
+      <li><a href="index.html">Getting started</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="playbooks.html">Playbooks</a></li>
+      <li><a href="safety.html" aria-current="page">Safety</a></li>
+      <li><a href="architecture.html">Architecture</a></li>
+      <li><a href="api.html">HTTP endpoints</a></li>
+    </ul>
+  </aside>
+
+  <main id="main" class="docs-body">
+    <h1>Safety</h1>
+    <p>The analyzer decides <em>what</em> should happen. The safety guard decides whether it
+    <em>may</em>. It runs before every remediation and every verifier and returns a
+    <code>SafetyResult</code> with <code>allowed</code>, <code>requires_confirmation</code>,
+    and the list of <code>reasons</code>.</p>
+
+    <h2>What blocks a run</h2>
+    <table>
+      <thead><tr><th>Check</th><th>Limit</th></tr></thead>
+      <tbody>
+        <tr><td>Empty playbook</td><td>A playbook with no steps is blocked.</td></tr>
+        <tr><td>Host allowlist</td><td>If <code>applies_to.hosts.tags</code> is set, the host must share a tag.</td></tr>
+        <tr><td>Command length</td><td><code>2000</code> characters maximum per step.</td></tr>
+        <tr><td>Step timeout</td><td>Must be greater than 0 and at most <code>300</code> seconds.</td></tr>
+        <tr><td>Denylist</td><td>Any matching pattern blocks the whole playbook.</td></tr>
+        <tr><td>Verifier read-only</td><td>Verifier steps must not contain write markers.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Denylist patterns</h2>
+    <p>The guard refuses command shapes that write to the wrong place or open a shell back
+    to somewhere else. The published set covers:</p>
+    <ul>
+      <li>Fork bombs and reverse shells.</li>
+      <li>Recursive deletes of <code>/</code> or <code>/*</code>.</li>
+      <li>Disk formatting and raw device writes: <code>mkfs</code>, <code>dd if=</code>.</li>
+      <li>Piping a download straight into a shell.</li>
+      <li>Writes to <code>/etc/shadow</code>, <code>/etc/sudoers</code>, <code>/boot</code>, <code>/proc/sys</code>, and other system paths.</li>
+      <li>Raw socket and node helpers: <code>/dev/tcp/</code>, <code>nc -e</code>, <code>ncat</code>, <code>mknod</code>, <code>mkfifo</code>, <code>bash -i</code>.</li>
+    </ul>
+    <div class="callout warn">
+      <strong>Approve is not a bypass.</strong> Confirming a playbook approves it for this
+      run; it does not let a denylisted command through. The denylist is evaluated the same
+      way whether a run is automatic or confirmed.
+    </div>
+
+    <h2>When confirmation is required</h2>
+    <p>A run needs a human click if <em>any</em> of these is true:</p>
+    <ul>
+      <li>The playbook's <code>risk</code> is not <code>auto</code>.</li>
+      <li>The playbook source is not <code>builtin</code> (custom playbooks always confirm).</li>
+      <li>Global auto mode is off (<code>OPSPILOT_GLOBAL_AUTO_MODE=false</code>, the default).</li>
+      <li>The playbook sets <code>auto_run: false</code>.</li>
+    </ul>
+    <p>In other words, an automatic run requires all four: an <code>auto</code> risk tier, a
+    builtin source, global auto mode on, and <code>auto_run: true</code>.</p>
+
+    <h2>Verifier rules</h2>
+    <p>A verifier is a playbook marked <code>verifier: true</code>. Its steps are checked
+    against a read-only filter: any step containing <code>&gt;</code>, <code>&gt;&gt;</code>,
+    <code>tee</code>, <code>rm</code>, <code>mv</code>, <code>cp</code>, <code>chmod</code>,
+    <code>chown</code>, <code>dd</code>, <code>mkfs</code>, or a <code>systemctl</code>
+    stop/restart/disable is rejected. A verifier that writes is not a verifier.</p>
+
+    <h2>Incident outcomes</h2>
+    <ul>
+      <li><code>resolved</code> — the verifier exited 0 and the metric recheck passed.</li>
+      <li><code>unresolved_recommended</code> — still broken after the attempt; OpsPilot makes one final recommendation-only follow-up and stops.</li>
+      <li><code>pending_confirmation</code> — waiting on an admin click.</li>
+      <li><code>blocked</code> — the guard refused the run.</li>
+    </ul>
+    <p>No playbook match means no execution at all; the incident is logged with the model's
+    explanation instead. Every one of these transitions is written to the audit journal.</p>
+
+    <h2>Audit</h2>
+    <p>Each safety decision records a <code>safety_decision</code> event with the playbook id,
+    the <code>allowed</code> flag, and the reasons. Remediation runs record their commands,
+    exit codes, stdout, and stderr. The journal is append-only JSONL under the data directory.</p>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>OpsPilot · MIT licensed</span>
+    <span><a href="../">Home</a> · <a href="https://github.com/techforge-cli/OpsPilot">GitHub</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

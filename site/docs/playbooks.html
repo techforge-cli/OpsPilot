@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playbooks — OpsPilot docs</title>
+<meta name="description" content="The OpsPilot playbook format, field reference, and bundled playbook set.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../">&gt;_ OpsPilot</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="./">Docs</a>
+      <a href="architecture.html">Architecture</a>
+      <a class="gh" href="https://github.com/techforge-cli/OpsPilot">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap docs-layout">
+  <aside class="docs-side">
+    <p class="side-title">Documentation</p>
+    <ul>
+      <li><a href="index.html">Getting started</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="playbooks.html" aria-current="page">Playbooks</a></li>
+      <li><a href="safety.html">Safety</a></li>
+      <li><a href="architecture.html">Architecture</a></li>
+      <li><a href="api.html">HTTP endpoints</a></li>
+    </ul>
+  </aside>
+
+  <main id="main" class="docs-body">
+    <h1>Playbooks</h1>
+    <p>A playbook is a YAML document describing a named remediation or verification made of
+    command steps. The analyzer recommends a playbook by its <code>id</code>, and the safety
+    guard decides whether it may run.</p>
+
+    <h2>Example</h2>
+    <pre><code><span class="k">id</span>: restart-docker-unhealthy
+<span class="k">title</span>: Restart unhealthy Docker service
+<span class="k">description</span>: Restarts the Docker daemon when it is unhealthy.
+<span class="k">risk</span>: confirm
+<span class="k">auto_run</span>: false
+<span class="k">applies_to</span>:
+  <span class="k">issue_ids</span>:
+    - docker_service_unhealthy
+  <span class="k">hosts</span>:
+    <span class="k">tags</span>:
+      - docker
+<span class="k">preconditions</span>:
+  - <span class="k">command</span>: test -x /usr/bin/systemctl
+<span class="k">steps</span>:
+  - <span class="k">id</span>: restart
+    <span class="k">command</span>: systemctl restart docker
+    <span class="k">timeout_seconds</span>: 60
+    <span class="k">idempotent</span>: false
+  - <span class="k">id</span>: wait
+    <span class="k">command</span>: sleep 5
+<span class="k">verifier_id</span>: docker-service-healthy
+</code></pre>
+
+    <h2>Field reference</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>Unique playbook identifier the analyzer targets.</td></tr>
+        <tr><td><code>title</code></td><td>Human-readable name for the dashboard.</td></tr>
+        <tr><td><code>description</code></td><td>What the playbook does, shown next to incidents.</td></tr>
+        <tr><td><code>risk</code></td><td><code>auto</code> or <code>confirm</code>. Decides whether a run needs approval.</td></tr>
+        <tr><td><code>auto_run</code></td><td>Whether the playbook is eligible to run without a click, subject to global auto mode.</td></tr>
+        <tr><td><code>verifier</code></td><td><code>true</code> marks a playbook as a verifier rather than a remediation.</td></tr>
+        <tr><td><code>verifier_id</code></td><td>Playbook id used to verify a remediation succeeded.</td></tr>
+        <tr><td><code>applies_to.issue_ids</code></td><td>Issue ids this playbook is meant for.</td></tr>
+        <tr><td><code>applies_to.hosts.tags</code></td><td>Host tags the playbook applies to.</td></tr>
+        <tr><td><code>preconditions[]</code></td><td>Commands that must succeed before the steps run.</td></tr>
+        <tr><td><code>steps[].id</code></td><td>Step identifier used in the audit record.</td></tr>
+        <tr><td><code>steps[].command</code></td><td>Shell command executed on the target host.</td></tr>
+        <tr><td><code>steps[].timeout_seconds</code></td><td>Per-step timeout; enforced and capped by the safety guard.</td></tr>
+        <tr><td><code>steps[].idempotent</code></td><td>Marks a step safe to repeat.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Bundled playbooks</h2>
+    <p>These ship read-only inside the package and cannot be edited in place.</p>
+    <table>
+      <thead><tr><th>id</th><th>Risk</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>sample-noop</code></td><td><code>auto</code></td><td>Reads <code>uptime</code> and <code>free -b</code> as a demonstration.</td></tr>
+        <tr><td><code>sample-verify</code></td><td><code>auto</code></td><td>Verifier that runs <code>uptime</code>; confirms the sample playbook ran.</td></tr>
+        <tr><td><code>restart-docker-unhealthy</code></td><td><code>confirm</code></td><td>Restarts Docker when unhealthy, then hands off to the verifier.</td></tr>
+        <tr><td><code>docker-service-healthy</code></td><td><code>auto</code></td><td>Read-only verification that Docker is active and responding.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Bundled versus custom</h2>
+    <ul>
+      <li><strong>Bundled</strong> — sourced from the package, read-only, flagged as builtin.</li>
+      <li><strong>Custom</strong> — authored by an admin. Each save creates an immutable revision, so an old incident always points at the exact version that ran.</li>
+    </ul>
+    <div class="callout">
+      <strong>No match, no run.</strong> If the analyzer names a playbook that does not
+      exist, nothing executes; the incident is recorded instead. See
+      <a href="safety.html">Safety</a>.
+    </div>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>OpsPilot · MIT licensed</span>
+    <span><a href="../">Home</a> · <a href="https://github.com/techforge-cli/OpsPilot">GitHub</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

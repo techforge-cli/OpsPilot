@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting started — OpsPilot docs</title>
+<meta name="description" content="Install OpsPilot, validate configuration, and start the dashboard.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../">&gt;_ OpsPilot</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="./" aria-current="page">Docs</a>
+      <a href="architecture.html">Architecture</a>
+      <a class="gh" href="https://github.com/techforge-cli/OpsPilot">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap docs-layout">
+  <aside class="docs-side">
+    <p class="side-title">Documentation</p>
+    <ul>
+      <li><a href="index.html" aria-current="page">Getting started</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="playbooks.html">Playbooks</a></li>
+      <li><a href="safety.html">Safety</a></li>
+      <li><a href="architecture.html">Architecture</a></li>
+      <li><a href="api.html">HTTP endpoints</a></li>
+    </ul>
+  </aside>
+
+  <main id="main" class="docs-body">
+    <h1>Getting started</h1>
+    <p>OpsPilot is a single FastAPI process for Debian-family servers. It collects native
+    Linux metrics, analyzes them with a local Ollama model, and runs governed remediation
+    playbooks. These steps take you from a clean checkout to a running dashboard.</p>
+
+    <h2>Requirements</h2>
+    <ul>
+      <li>Python 3.11 or newer.</li>
+      <li>A Debian-family host (or a host you reach over SSH).</li>
+      <li>A reachable Ollama endpoint with a pulled model, for example <code>qwen2.5:7b</code>.</li>
+    </ul>
+
+    <h2>Install</h2>
+    <pre><code>python -m venv .venv
+. .venv/bin/activate
+pip install -e .</code></pre>
+
+    <h2>Configure</h2>
+    <p>OpsPilot reads <code>OPSPILOT_</code>-prefixed environment variables. The two you
+    almost always set first are the data directory and the admin password.</p>
+    <pre><code>export OPSPILOT_DATA_DIR=/var/lib/opspilot
+export OPSPILOT_ADMIN_PASSWORD='change-me'</code></pre>
+    <div class="callout">
+      <strong>Read-only mode.</strong> If <code>OPSPILOT_ADMIN_PASSWORD</code> is empty,
+      the web dashboard runs in read-only mode and no admin actions are accepted.
+    </div>
+
+    <h2>Validate and run</h2>
+    <pre><code>opspilot --config-check
+opspilot</code></pre>
+    <p><code>--config-check</code> validates settings, creates the data directory, and exits.
+    Running <code>opspilot</code> starts the scheduler and the web server. Open
+    <code>http://127.0.0.1:8443/</code> by default and sign in with the admin password.</p>
+
+    <h2>Run as a service</h2>
+    <p>A systemd unit ships in the repository at <code>systemd/opspilot.service</code>.
+    Install it, set the environment variables for the unit, then enable and start it.</p>
+    <pre><code>sudo cp systemd/opspilot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now opspilot</code></pre>
+
+    <h2>Next steps</h2>
+    <ul>
+      <li>Read the <a href="configuration.html">configuration reference</a> for every variable.</li>
+      <li>Learn the <a href="playbooks.html">playbook format</a> and the bundled set.</li>
+      <li>Understand the <a href="safety.html">safety guard</a> before enabling auto-run.</li>
+    </ul>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>OpsPilot · MIT licensed</span>
+    <span><a href="../">Home</a> · <a href="https://github.com/techforge-cli/OpsPilot">GitHub</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
