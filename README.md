@@ -1,5 +1,10 @@
 # OpsPilot
 
+[![CI](https://github.com/techforge-cli/OpsPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/techforge-cli/OpsPilot/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
+
+
 Linux server administration assistant for Debian-family servers. OpsPilot collects
 native Linux metrics, sends a compact snapshot to a local Ollama model through
 the OpenAI-compatible API, and can run governed remediation playbooks with a
