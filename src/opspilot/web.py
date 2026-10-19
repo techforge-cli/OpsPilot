@@ -1,9 +1,12 @@
 import hmac
+import os
+import sqlite3
 import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -46,7 +49,13 @@ def create_app(settings: Settings):
     _login_lock = threading.Lock()
     app.state.conn = connect(db_path)
     app.state.host_repo = HostRepository(app.state.conn)
-    app.state.audit_repo = AuditRepository(app.state.conn, journal_path=data_path / "audit" / "audit.jsonl")
+    app.state.audit_repo = AuditRepository(
+        app.state.conn,
+        journal_path=data_path / "audit" / "audit.jsonl",
+    )
+    audit_secret = os.environ.get("OPSPILOT_AUDIT_SECRET", "")
+    if audit_secret and app.state.audit_repo.journal is not None:
+        app.state.audit_repo.journal.secret = audit_secret.encode()
     app.state.write_lock = threading.Lock()
 
     try:
@@ -281,5 +290,25 @@ def create_app(settings: Settings):
     @app.get("/healthz")
     def healthz():
         return {"status": "ok"}
+
+    @app.get("/readyz")
+    def readyz():
+        checks = {}
+        try:
+            app.state.conn.execute("SELECT 1").fetchone()
+            checks["database"] = "ok"
+        except (OSError, RuntimeError, ValueError, TypeError, sqlite3.Error):
+            checks["database"] = "error"
+        ollama_url = getattr(app.state.settings, "ollama_base_url", "")
+        if ollama_url:
+            try:
+                resp = httpx.get(f"{ollama_url.rstrip('/')}/api/tags", timeout=5)
+                checks["ollama"] = "ok" if resp.status_code == 200 else "unavailable"
+            except (OSError, RuntimeError, ValueError, TypeError, ImportError, httpx.HTTPError):
+                checks["ollama"] = "unavailable"
+        else:
+            checks["ollama"] = "not_configured"
+        all_ok = all(v in ("ok", "not_configured") for v in checks.values())
+        return JSONResponse({"status": "ok" if all_ok else "degraded", "checks": checks}, status_code=200 if all_ok else 503)
 
     return app

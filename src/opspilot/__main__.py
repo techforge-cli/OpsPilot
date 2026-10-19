@@ -1,8 +1,10 @@
 import argparse
 import os
+import sys
 
 from opspilot.config import settings_from_env
 from opspilot.db import init_db
+from opspilot.license import load_license, validate_license
 from opspilot.web import create_app
 
 
@@ -13,6 +15,16 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=None, help="override bind port")
     args = parser.parse_args()
     settings = settings_from_env()
+
+    private_key = os.environ.get("OPSPILOT_LICENSE_KEY", "")
+    if private_key:
+        license_path = settings.data_path / "license.yml"
+        license_data = load_license(license_path)
+        valid, reason = validate_license(license_data, private_key)
+        if not valid:
+            print(f"license invalid: {reason}", file=sys.stderr)
+            sys.exit(1)
+
     init_db(settings.data_path / "opspilot.sqlite")
     if args.config_check:
         os.makedirs(settings.data_path, exist_ok=True)

@@ -67,3 +67,40 @@ def test_login_rate_limited():
         response = client.post("/login", data={"username": "x", "password": "y"})
     assert response is not None
     assert response.status_code == 429
+
+
+def test_readyz_returns_503_when_ollama_unreachable(app_dir):
+    settings = Settings(data_dir=app_dir, ollama_base_url="http://127.0.0.1:1")
+    app = create_app(settings)
+    with TestClient(app) as client:
+        response = client.get("/readyz")
+        assert response.status_code == 503
+        data = response.json()
+        assert data["status"] == "degraded"
+        assert data["checks"]["database"] == "ok"
+        assert data["checks"]["ollama"] == "unavailable"
+
+
+def test_readyz_returns_200_when_all_healthy(app_dir):
+    settings = Settings(data_dir=app_dir, ollama_base_url="")
+    app = create_app(settings)
+    with TestClient(app) as client:
+        response = client.get("/readyz")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+        assert data["checks"]["database"] == "ok"
+        assert data["checks"]["ollama"] == "not_configured"
+
+
+def test_readyz_returns_503_when_database_down(app_dir):
+    settings = Settings(data_dir=app_dir, ollama_base_url="")
+    app = create_app(settings)
+    with TestClient(app) as client:
+        client.get("/readyz")
+        app.state.conn.close()
+        response = client.get("/readyz")
+        assert response.status_code == 503
+        data = response.json()
+        assert data["status"] == "degraded"
+        assert data["checks"]["database"] == "error"
