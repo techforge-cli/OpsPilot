@@ -61,3 +61,12 @@
 5. SSO/LDAP integration
 6. Backup/restore tooling
 7. Air-gapped install path
+
+## Status
+- [x] Docker Compose deployment
+- [x] Node-locked license file
+- [x] Audit integrity (hash chain + HMAC + fsync)
+- [x] /readyz endpoint
+- [ ] SSO/LDAP integration
+- [ ] Backup/restore tooling
+- [ ] Air-gapped install path
