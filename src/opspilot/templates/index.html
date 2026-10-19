@@ -3,6 +3,8 @@
 {% block content %}
 <h1>Overview</h1>
 
+{% include "_demo_controls.html" %}
+
 <div id="status" hx-get="/partials/status" hx-trigger="every 15s" hx-swap="innerHTML">
   {% include "_status.html" %}
 </div>

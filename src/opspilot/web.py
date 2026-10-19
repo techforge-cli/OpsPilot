@@ -66,6 +66,30 @@ def create_app(settings: Settings):
 
     runtime = build_runtime(settings, app.state.conn, app.state.audit_repo)
     app.state.runtime = runtime
+
+    if settings.demo_mode:
+        from opspilot.demo import DemoSession
+        app.state.demo_session = DemoSession(
+            app.state.conn,
+            app.state.audit_repo,
+            runtime["safety_guard"],
+            runtime["executor"],
+        )
+        app.state.demo_session.seed_hosts()
+    else:
+        app.state.demo_session = None
+
+    if settings.demo_mode:
+        from opspilot.demo import DemoSession
+        app.state.demo_session = DemoSession(
+            app.state.conn,
+            app.state.audit_repo,
+            runtime["safety_guard"],
+            runtime["executor"],
+        )
+        app.state.demo_session.seed_hosts()
+    else:
+        app.state.demo_session = None
     app.state.analyzer = runtime["analyzer"]
     app.state.executor = runtime["executor"]
     app.state.incident_repo = runtime["incident_manager"].repository if runtime["incident_manager"] else None
@@ -310,5 +334,23 @@ def create_app(settings: Settings):
             checks["ollama"] = "not_configured"
         all_ok = all(v in ("ok", "not_configured") for v in checks.values())
         return JSONResponse({"status": "ok" if all_ok else "degraded", "checks": checks}, status_code=200 if all_ok else 503)
+
+    @app.post("/demo/trigger/{tier}")
+    def demo_trigger(tier: int, request: Request, _admin=Depends(require_admin)):
+        if not hasattr(app.state, "demo_session") or app.state.demo_session is None:
+            raise HTTPException(status_code=404, detail="demo mode not enabled")
+        return app.state.demo_session.trigger_tier(tier)
+
+    @app.post("/demo/confirm")
+    def demo_confirm(request: Request, _admin=Depends(require_admin)):
+        if not hasattr(app.state, "demo_session") or app.state.demo_session is None:
+            raise HTTPException(status_code=404, detail="demo mode not enabled")
+        return app.state.demo_session.confirm()
+
+    @app.get("/demo/status")
+    def demo_status(request: Request, _admin=Depends(require_admin)):
+        if not hasattr(app.state, "demo_session") or app.state.demo_session is None:
+            raise HTTPException(status_code=404, detail="demo mode not enabled")
+        return app.state.demo_session.get_status()
 
     return app

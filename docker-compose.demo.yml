@@ -1,0 +1,19 @@
+services:
+  opspilot:
+    build: .
+    ports:
+      - "8443:8443"
+    environment:
+      OPSPILOT_DEMO_MODE: "true"
+      OPSPILOT_ADMIN_PASSWORD: "demo"
+      OPSPILOT_DATA_DIR: /var/lib/opspilot
+      OPSPILOT_OLLAMA_BASE_URL: "http://127.0.0.1:11434"
+      OPSPILOT_OLLAMA_MODEL: "qwen2.5:7b"
+      OPSPILOT_INTERVAL_SECONDS: "30"
+      OPSPILOT_GLOBAL_AUTO_MODE: "false"
+    volumes:
+      - opspilot-demo:/var/lib/opspilot
+    restart: unless-stopped
+
+volumes:
+  opspilot-demo:

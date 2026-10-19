@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen2.5:7b"
     interval_seconds: int = 30
     global_auto_mode: bool = False
+    demo_mode: bool = False
     ssh_key_path: str = "/etc/opspilot/operator.key"
     log_level: str = "INFO"
     session_secret: str = Field(default_factory=lambda: secrets.token_urlsafe(32))

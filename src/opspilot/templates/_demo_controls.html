@@ -1,0 +1,75 @@
+{% if demo_mode %}
+<section id="demo-controls" style="border: 2px dashed var(--primary); border-radius: 8px; padding: 20px; margin-bottom: 24px; background: var(--bg-raised);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <span style="font-family: var(--font-display); font-weight: 700; color: var(--primary);">DEMO MODE</span>
+    <span style="font-size: 0.75rem; color: var(--text-dim);">Click a scenario to trigger it</span>
+  </div>
+
+  <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+    <button
+      id="btn-tier1"
+      class="btn"
+      style="background: var(--success); color: var(--bg); border-color: var(--success);"
+      hx-post="/demo/trigger/1"
+      hx-target="#demo-results"
+      hx-swap="innerHTML"
+      hx-on::click="this.disabled = true"
+    >
+      Tier 1: Auto-Run
+    </button>
+    <button
+      id="btn-tier2"
+      class="btn"
+      style="background: var(--warning); color: var(--bg); border-color: var(--warning);"
+      hx-post="/demo/trigger/2"
+      hx-target="#demo-results"
+      hx-swap="innerHTML"
+      hx-on::click="this.disabled = true"
+    >
+      Tier 2: Confirm
+    </button>
+    <button
+      id="btn-tier3"
+      class="btn"
+      style="background: var(--danger); color: var(--bg); border-color: var(--danger);"
+      hx-post="/demo/trigger/3"
+      hx-target="#demo-results"
+      hx-swap="innerHTML"
+      hx-on::click="this.disabled = true"
+    >
+      Tier 3: Blocked
+    </button>
+    <button
+      id="btn-confirm"
+      class="btn ghost"
+      style="display: none;"
+      hx-post="/demo/confirm"
+      hx-target="#demo-results"
+      hx-swap="innerHTML"
+      hx-on::click="this.disabled = true"
+    >
+      Confirm Execution
+    </button>
+  </div>
+
+  <div id="demo-progress" style="display: none; margin-bottom: 16px;">
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; margin-bottom: 8px;">
+      <span id="progress-label" style="color: var(--text-dim);">Waiting...</span>
+    </div>
+    <div style="display: flex; gap: 4px;">
+      <div class="progress-step" id="step-analysis" style="flex: 1; height: 6px; background: var(--border); border-radius: 3px;"></div>
+      <div class="progress-step" id="step-guard" style="flex: 1; height: 6px; background: var(--border); border-radius: 3px;"></div>
+      <div class="progress-step" id="step-execute" style="flex: 1; height: 6px; background: var(--border); border-radius: 3px;"></div>
+      <div class="progress-step" id="step-verify" style="flex: 1; height: 6px; background: var(--border); border-radius: 3px;"></div>
+      <div class="progress-step" id="step-resolved" style="flex: 1; height: 6px; background: var(--border); border-radius: 3px;"></div>
+    </div>
+  </div>
+
+  <div id="demo-results"></div>
+
+  <div id="demo-logs" style="display: none; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 8px; padding: 12px; max-height: 300px; overflow-y: auto; font-size: 0.8rem;">
+    <div style="color: var(--text-dim); margin-bottom: 8px; font-family: var(--font-display);">Audit Log</div>
+    <div id="demo-log-entries"></div>
+  </div>
+</section>
+{% endif %}
