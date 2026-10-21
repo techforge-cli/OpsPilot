@@ -233,6 +233,7 @@ def create_app(settings: Settings):
                 "snapshots": _snapshots(hosts),
                 "latest_incident": incidents[0] if incidents else None,
                 "pending": [i for i in incidents if i.status == "pending_confirmation"],
+                "demo_mode": app.state.settings.demo_mode,
             },
         )
 
@@ -336,19 +337,22 @@ def create_app(settings: Settings):
         return JSONResponse({"status": "ok" if all_ok else "degraded", "checks": checks}, status_code=200 if all_ok else 503)
 
     @app.post("/demo/trigger/{tier}")
-    def demo_trigger(tier: int, request: Request, _admin=Depends(require_admin)):
+    def demo_trigger(tier: int, request: Request):
+        require_admin(request)
         if not hasattr(app.state, "demo_session") or app.state.demo_session is None:
             raise HTTPException(status_code=404, detail="demo mode not enabled")
         return app.state.demo_session.trigger_tier(tier)
 
     @app.post("/demo/confirm")
-    def demo_confirm(request: Request, _admin=Depends(require_admin)):
+    def demo_confirm(request: Request):
+        require_admin(request)
         if not hasattr(app.state, "demo_session") or app.state.demo_session is None:
             raise HTTPException(status_code=404, detail="demo mode not enabled")
         return app.state.demo_session.confirm()
 
     @app.get("/demo/status")
-    def demo_status(request: Request, _admin=Depends(require_admin)):
+    def demo_status(request: Request):
+        require_admin(request)
         if not hasattr(app.state, "demo_session") or app.state.demo_session is None:
             raise HTTPException(status_code=404, detail="demo mode not enabled")
         return app.state.demo_session.get_status()

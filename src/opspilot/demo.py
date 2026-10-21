@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 import threading
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -12,7 +13,6 @@ from opspilot.incidents import IncidentManager
 from opspilot.models import Host
 from opspilot.playbooks import Playbook, load_builtin_playbooks
 from opspilot.safety import SafetyGuard
-
 
 DEMO_HOSTS = [
     Host("web-01", "web-01", "10.0.0.11", execution_mode="local", tags=("web", "prod", "docker")),
@@ -40,7 +40,7 @@ class DemoSession:
         for host in DEMO_HOSTS:
             try:
                 repo.save(host)
-            except Exception:
+            except sqlite3.IntegrityError:
                 pass
 
     def _log(self, stage: str, message: str, detail: dict | None = None) -> None:
@@ -57,6 +57,8 @@ class DemoSession:
         with self._lock:
             if self._stage not in ("idle", "completed"):
                 return {"error": "demo already running", "stage": self._stage}
+
+            self.seed_hosts()
 
             self._current_tier = tier
             self._logs = []

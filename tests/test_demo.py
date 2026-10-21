@@ -1,9 +1,10 @@
 import pytest
-from opspilot.demo import DemoSession
-from opspilot.db import connect, init_db
+
 from opspilot.audit import AuditRepository
-from opspilot.safety import SafetyGuard
+from opspilot.db import connect, init_db
+from opspilot.demo import DemoSession
 from opspilot.executor import PlaybookExecutor
+from opspilot.safety import SafetyGuard
 
 
 @pytest.fixture
